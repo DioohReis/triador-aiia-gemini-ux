@@ -3,16 +3,16 @@ backend/.venv/
 backend/__pycache__/
 backend/**/*.pyc
 backend/.env
-backend/triador.db
 backend/*.db
+backend/triador.db
 
-# Node
+# Node / Next
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
 frontend/out/
 
-# OS / Editor
-.DS_Store
+# Editor / OS
 .vscode/
 .idea/
+.DS_Store

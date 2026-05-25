@@ -1,6 +1,8 @@
 import json
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+
 from app.models.analysis import Analysis
 from app.schemas.analysis import AnalysisLLMResult
 
@@ -24,17 +26,20 @@ class AnalysisRepository:
         self.db.refresh(analysis)
         return analysis
 
-def delete_by_id(self, analysis_id: int) -> bool:
-    analysis = (
-        self.db.query(Analysis)
-        .filter(Analysis.id == analysis_id)
-        .first()
-    )
+    def list_recent(self, limit: int = 20) -> list[Analysis]:
+        statement = (
+            select(Analysis)
+            .order_by(Analysis.created_at.desc(), Analysis.id.desc())
+            .limit(limit)
+        )
+        return list(self.db.scalars(statement).all())
 
-    if analysis is None:
-        return False
+    def delete_by_id(self, analysis_id: int) -> bool:
+        analysis = self.db.get(Analysis, analysis_id)
 
-    self.db.delete(analysis)
-    self.db.commit()
+        if analysis is None:
+            return False
 
-    return True
+        self.db.delete(analysis)
+        self.db.commit()
+        return True

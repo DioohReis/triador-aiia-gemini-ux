@@ -18,11 +18,16 @@ export type Health = {
 
 export type ExtractedDocument = {
   filename: string;
+  content_type?: string;
   characters: number;
   text: string;
 };
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+const RAW_API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const NORMALIZED_API_URL = RAW_API_URL.replace(/\/$/, "");
+const API_URL = NORMALIZED_API_URL.endsWith("/api")
+  ? NORMALIZED_API_URL
+  : `${NORMALIZED_API_URL}/api`;
 
 function normalizeError(error: unknown): string {
   if (typeof error === "string") return error;
