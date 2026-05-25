@@ -1,3 +1,16 @@
+export type User = {
+  id: number;
+  name: string;
+  email: string;
+  created_at: string;
+};
+
+export type AuthResponse = {
+  access_token: string;
+  token_type: string;
+  user: User;
+};
+
 export type Analysis = {
   id: number;
   candidate_name: string;
@@ -40,23 +53,22 @@ function normalizeError(error: unknown): string {
   return "Erro inesperado na comunicação com a API.";
 }
 
-async function request<T>(path: string, options?: RequestInit): Promise<T> {
+async function request<T>(path: string, options?: RequestInit, token?: string | null): Promise<T> {
   let response: Response;
   const isFormData = options?.body instanceof FormData;
 
   try {
     response = await fetch(`${API_URL}${path}`, {
       ...options,
-      headers: isFormData
-        ? options?.headers
-        : {
-            "Content-Type": "application/json",
-            ...(options?.headers ?? {}),
-          },
+      headers: {
+        ...(isFormData ? {} : { "Content-Type": "application/json" }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options?.headers ?? {}),
+      },
     });
   } catch {
     throw new Error(
-      `Não foi possível conectar na API em ${API_URL}. Confirme se o backend está rodando na porta 8000.`
+      `Não foi possível conectar na API em ${API_URL}. Confirme se o backend está online.`
     );
   }
 
@@ -76,29 +88,59 @@ export function getHealth() {
   return request<Health>("/health");
 }
 
-export function createAnalysis(resumeText: string, jobText: string) {
-  return request<Analysis>("/analyses", {
+export function registerUser(name: string, email: string, password: string) {
+  return request<AuthResponse>("/auth/register", {
     method: "POST",
-    body: JSON.stringify({ resume_text: resumeText, job_text: jobText }),
+    body: JSON.stringify({ name, email, password }),
   });
 }
 
-export function extractDocument(file: File) {
+export function loginUser(email: string, password: string) {
+  return request<AuthResponse>("/auth/login", {
+    method: "POST",
+    body: JSON.stringify({ email, password }),
+  });
+}
+
+export function getMe(token: string) {
+  return request<User>("/auth/me", undefined, token);
+}
+
+export function createAnalysis(resumeText: string, jobText: string, token: string) {
+  return request<Analysis>(
+    "/analyses",
+    {
+      method: "POST",
+      body: JSON.stringify({ resume_text: resumeText, job_text: jobText }),
+    },
+    token
+  );
+}
+
+export function extractDocument(file: File, token: string) {
   const formData = new FormData();
   formData.append("file", file);
 
-  return request<ExtractedDocument>("/documents/extract", {
-    method: "POST",
-    body: formData,
-  });
+  return request<ExtractedDocument>(
+    "/documents/extract",
+    {
+      method: "POST",
+      body: formData,
+    },
+    token
+  );
 }
 
-export function listAnalyses() {
-  return request<Analysis[]>("/analyses");
+export function listAnalyses(token: string) {
+  return request<Analysis[]>("/analyses", undefined, token);
 }
 
-export async function deleteAnalysis(id: number) {
-  await request<void>(`/analyses/${id}`, {
-    method: "DELETE",
-  });
+export async function deleteAnalysis(id: number, token: string) {
+  await request<void>(
+    `/analyses/${id}`,
+    {
+      method: "DELETE",
+    },
+    token
+  );
 }

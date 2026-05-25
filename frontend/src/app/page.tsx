@@ -1,17 +1,46 @@
 "use client";
 
 import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties } from "react";
-import { Analysis, Health, createAnalysis, deleteAnalysis, extractDocument, getHealth, listAnalyses } from "@/lib/api";
+import {
+  Analysis,
+  Health,
+  User,
+  createAnalysis,
+  deleteAnalysis,
+  extractDocument,
+  getHealth,
+  getMe,
+  listAnalyses,
+  loginUser,
+  registerUser,
+} from "@/lib/api";
 
-const sampleResume = `Nome: Ana Ribeiro
-Desenvolvedora Fullstack Júnior com 2 anos de experiência em Python, FastAPI, React, TypeScript, SQL, SQLite, Postgres, Git e integração com APIs REST. Atuou em sistemas internos, modelagem de dados relacionais, consumo de serviços de IA e criação de interfaces com foco em usabilidade.`;
+type Theme = "dark" | "light";
+type AuthMode = "login" | "register";
 
-const sampleJob = `Vaga: Desenvolvedor(a) Fullstack Júnior
-Requisitos: Python ou Go no backend, Next.js com TypeScript no frontend, banco relacional, integração com LLM via API, validação de saída estruturada, uso de SQL, Git, arquitetura em camadas e boa comunicação técnica.`;
+const STORAGE_TOKEN = "triador_access_token";
+const STORAGE_THEME = "triador_theme";
 
-type StepStatus = "done" | "active" | "pending";
-type ThemeMode = "light" | "dark";
+const suggestionSlots = [
+  "Cole aqui uma vaga de Desenvolvedor Fullstack Júnior com requisitos técnicos claros.",
+  "Use descrições reais de LinkedIn, Gupy ou documento interno da empresa.",
+  "Prefira vagas com tecnologias, senioridade, responsabilidades e diferenciais.",
+];
+
+function Icon({ name }: { name: "office" | "file" | "lock" | "spark" | "briefcase" | "trash" | "upload" | "logout" }) {
+  const common = { width: 20, height: 20, viewBox: "0 0 24 24", fill: "none", stroke: "currentColor", strokeWidth: 1.8, strokeLinecap: "round", strokeLinejoin: "round" } as const;
+  const paths: Record<typeof name, JSX.Element> = {
+    office: <><path d="M4 21V5.8c0-.9.6-1.7 1.5-1.9l7-1.6c.8-.2 1.5.4 1.5 1.2V21"/><path d="M14 8h4a2 2 0 0 1 2 2v11"/><path d="M7 8h3M7 12h3M7 16h3M17 13h1M17 17h1M3 21h18"/></>,
+    file: <><path d="M14 2H7a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V7z"/><path d="M14 2v5h5"/><path d="M9 13h6M9 17h4"/></>,
+    lock: <><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/><path d="M12 15v2"/></>,
+    spark: <><path d="M12 2l1.7 5.2L19 9l-5.3 1.8L12 16l-1.7-5.2L5 9l5.3-1.8L12 2z"/><path d="M19 15l.9 2.6L22 18.5l-2.1.9L19 22l-.9-2.6-2.1-.9 2.1-.9L19 15z"/></>,
+    briefcase: <><path d="M10 6V5a2 2 0 0 1 2-2h0a2 2 0 0 1 2 2v1"/><rect x="3" y="6" width="18" height="14" rx="2"/><path d="M3 12h18M12 12v2"/></>,
+    trash: <><path d="M3 6h18"/><path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></>,
+    upload: <><path d="M12 16V4"/><path d="M7 9l5-5 5 5"/><path d="M4 16v3a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-3"/></>,
+    logout: <><path d="M10 17l5-5-5-5"/><path d="M15 12H3"/><path d="M21 3v18"/></>,
+  };
+  return <svg {...common}>{paths[name]}</svg>;
+}
 
 function scoreLabel(score: number) {
   if (score >= 85) return "Match excelente";
@@ -21,26 +50,12 @@ function scoreLabel(score: number) {
   return "Baixa aderência";
 }
 
-function scoreTone(score: number) {
-  if (score >= 85) return "excellent";
-  if (score >= 70) return "strong";
-  if (score >= 55) return "medium";
-  if (score >= 35) return "watch";
-  return "low";
-}
-
 function fitVerdict(score: number) {
   if (score >= 85) return "Priorizar entrevista técnica";
   if (score >= 70) return "Avançar para triagem humana";
   if (score >= 55) return "Avaliar gaps antes de avançar";
   if (score >= 35) return "Manter em banco de talentos";
   return "Não recomendado para esta vaga";
-}
-
-function formatFileSize(bytes: number) {
-  if (bytes < 1024) return `${bytes} B`;
-  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function formatDate(value: string) {
@@ -54,55 +69,124 @@ function formatDate(value: string) {
   }).format(date);
 }
 
-function normalizeProvider(value?: string) {
-  if (!value) return "--";
-  return value.toUpperCase();
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 function wordCount(text: string) {
   return text.trim() ? text.trim().split(/\s+/).length : 0;
 }
 
-function Stepper({ resumeReady, jobReady, resultReady }: { resumeReady: boolean; jobReady: boolean; resultReady: boolean }) {
-  const steps: Array<{ label: string; detail: string; status: StepStatus }> = [
-    { label: "Currículo", detail: resumeReady ? "Texto pronto" : "Envie PDF/DOCX/TXT", status: resumeReady ? "done" : "active" },
-    { label: "Vaga", detail: jobReady ? "Descrição pronta" : "Cole os requisitos", status: resumeReady ? (jobReady ? "done" : "active") : "pending" },
-    { label: "Análise", detail: resultReady ? "Score gerado" : "Gemini + validação", status: resultReady ? "done" : resumeReady && jobReady ? "active" : "pending" },
-  ];
+function normalizeProvider(value?: string) {
+  return value ? value.toUpperCase() : "--";
+}
 
+function SmokeLayer() {
   return (
-    <div className="stepper" aria-label="Progresso da análise">
-      {steps.map((step, index) => (
-        <div className={`step ${step.status}`} key={step.label}>
-          <span className="step-index">{index + 1}</span>
-          <div>
-            <strong>{step.label}</strong>
-            <small>{step.detail}</small>
-          </div>
-        </div>
-      ))}
+    <div className="smoke-stage" aria-hidden="true">
+      <span className="smoke smoke-a" />
+      <span className="smoke smoke-b" />
+      <span className="smoke smoke-c" />
     </div>
   );
 }
 
-function ResultSkeleton() {
+function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: User) => void; theme: Theme; setTheme: (theme: Theme) => void }) {
+  const [mode, setMode] = useState<AuthMode>("login");
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const response = mode === "register" ? await registerUser(name, email, password) : await loginUser(email, password);
+      localStorage.setItem(STORAGE_TOKEN, response.access_token);
+      onAuth(response.access_token, response.user);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível autenticar.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return (
-    <div className="skeleton-stack" aria-label="Análise em processamento">
-      <div className="skeleton-row">
-        <span className="skeleton-avatar" />
-        <div>
-          <span className="skeleton-line wide" />
-          <span className="skeleton-line small" />
+    <main className="auth-shell">
+      <SmokeLayer />
+      <section className="auth-hero glass-panel">
+        <nav className="topbar">
+          <div className="brand-mark"><span>ai</span><strong>Triador AIIA</strong></div>
+          <button className="theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} type="button">
+            {theme === "dark" ? "Modo claro" : "Modo escuro"}
+          </button>
+        </nav>
+        <div className="hero-grid">
+          <div className="hero-copy">
+            <span className="eyebrow"><Icon name="office" /> Candidate intelligence</span>
+            <h1>Triagem de currículos com uma experiência de produto real.</h1>
+            <p>
+              Envie currículos, compare com a vaga e mantenha cada histórico protegido por usuário. Uma camada de IA para transformar seleção técnica em decisão clara.
+            </p>
+            <div className="hero-actions">
+              <a href="#auth-card" className="primary-link">Start</a>
+              <span className="microcopy"><Icon name="lock" /> dados isolados por conta</span>
+            </div>
+          </div>
+          <div className="office-card">
+            <div className="desk-scene">
+              <div className="desk-window" />
+              <div className="desk-lamp" />
+              <div className="desk-monitor"><span>AI fit score</span><strong>87%</strong></div>
+              <div className="desk-doc doc-one" />
+              <div className="desk-doc doc-two" />
+              <div className="desk-cup" />
+            </div>
+          </div>
         </div>
-      </div>
-      <span className="skeleton-line full" />
-      <span className="skeleton-line full" />
-      <span className="skeleton-line half" />
-    </div>
+      </section>
+
+      <section className="auth-card glass-panel" id="auth-card">
+        <div className="auth-tabs" role="tablist">
+          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Entrar</button>
+          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Criar conta</button>
+        </div>
+        <div className="auth-title">
+          <Icon name="lock" />
+          <div>
+            <h2>{mode === "login" ? "Acesse seu workspace" : "Crie seu workspace"}</h2>
+            <p>Cada usuário visualiza apenas os próprios currículos e análises.</p>
+          </div>
+        </div>
+        <form onSubmit={submit} className="auth-form">
+          {mode === "register" && (
+            <label>Nome
+              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome" minLength={2} required />
+            </label>
+          )}
+          <label>E-mail
+            <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@email.com" type="email" required />
+          </label>
+          <label>Senha
+            <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo 6 caracteres" type="password" minLength={6} required />
+          </label>
+          {error && <div className="alert error">{error}</div>}
+          <button className="primary-button" disabled={loading} type="submit">{loading ? "Processando..." : mode === "login" ? "Entrar no Triador" : "Criar conta e começar"}</button>
+        </form>
+      </section>
+    </main>
   );
 }
 
 export default function Home() {
+  const [theme, setThemeState] = useState<Theme>("dark");
+  const [token, setToken] = useState<string | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [resumeText, setResumeText] = useState("");
   const [jobText, setJobText] = useState("");
   const [history, setHistory] = useState<Analysis[]>([]);
@@ -112,79 +196,74 @@ export default function Home() {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [extracting, setExtracting] = useState(false);
   const [dragging, setDragging] = useState(false);
-  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState("");
   const [fileInfo, setFileInfo] = useState("");
-  const [activeHistoryId, setActiveHistoryId] = useState<number | null>(null);
-  const [theme, setTheme] = useState<ThemeMode>("light");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const resumeReady = resumeText.trim().length >= 30;
   const jobReady = jobText.trim().length >= 30;
-  const canSubmit = resumeReady && jobReady && !loading && !extracting;
+  const canSubmit = Boolean(token) && resumeReady && jobReady && !loading && !extracting;
   const provider = normalizeProvider(health?.llm_provider);
-  const activeHistory = history.find((item) => item.id === activeHistoryId) ?? history[0] ?? null;
+  const readiness = (resumeReady ? 35 : 0) + (jobReady ? 35 : 0) + (health ? 30 : 0);
+  const averageScore = history.length ? Math.round(history.reduce((sum, item) => sum + item.fit_score, 0) / history.length) : 0;
+  const activeResult = result ?? history[0] ?? null;
 
-  const readiness = useMemo(() => {
-    let value = 0;
-    if (resumeReady) value += 40;
-    if (jobReady) value += 40;
-    if (health) value += 20;
-    return value;
-  }, [resumeReady, jobReady, health]);
+  function setTheme(nextTheme: Theme) {
+    setThemeState(nextTheme);
+    localStorage.setItem(STORAGE_THEME, nextTheme);
+    document.documentElement.dataset.theme = nextTheme;
+  }
 
-  const averageScore = useMemo(() => {
-    if (!history.length) return 0;
-    return Math.round(history.reduce((sum, item) => sum + item.fit_score, 0) / history.length);
-  }, [history]);
-
-  const topSkills = useMemo(() => {
-    const count = new Map<string, number>();
-    history.forEach((item) => item.skills.forEach((skill) => count.set(skill, (count.get(skill) ?? 0) + 1)));
-    return Array.from(count.entries()).sort((a, b) => b[1] - a[1]).slice(0, 9).map(([skill]) => skill);
-  }, [history]);
-
-  async function boot() {
-    setInitialLoading(true);
-    setError("");
-    try {
-      const [status, items] = await Promise.all([getHealth(), listAnalyses()]);
-      setHealth(status);
-      setHistory(items);
-      setActiveHistoryId((current) => current ?? items[0]?.id ?? null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível iniciar a aplicação.");
-    } finally {
-      setInitialLoading(false);
-    }
+  async function loadPrivateData(authToken: string) {
+    const [status, items] = await Promise.all([getHealth(), listAnalyses(authToken)]);
+    setHealth(status);
+    setHistory(items);
   }
 
   useEffect(() => {
-    boot();
+    const storedTheme = localStorage.getItem(STORAGE_THEME) as Theme | null;
+    const preferred = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+    setTheme(storedTheme ?? preferred);
+
+    const storedToken = localStorage.getItem(STORAGE_TOKEN);
+    if (!storedToken) return;
+
+    setToken(storedToken);
+    getMe(storedToken)
+      .then((me) => {
+        setUser(me);
+        return loadPrivateData(storedToken);
+      })
+      .catch(() => {
+        localStorage.removeItem(STORAGE_TOKEN);
+        setToken(null);
+        setUser(null);
+      });
   }, []);
 
-  useEffect(() => {
-    const savedTheme = window.localStorage.getItem("triador-theme") as ThemeMode | null;
-    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
-    setTheme(savedTheme ?? (prefersDark ? "dark" : "light"));
-  }, []);
+  async function onAuth(authToken: string, authUser: User) {
+    setToken(authToken);
+    setUser(authUser);
+    await loadPrivateData(authToken);
+  }
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    window.localStorage.setItem("triador-theme", theme);
-  }, [theme]);
-
-  function toggleTheme() {
-    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  function logout() {
+    localStorage.removeItem(STORAGE_TOKEN);
+    setToken(null);
+    setUser(null);
+    setHistory([]);
+    setResult(null);
+    setResumeText("");
+    setJobText("");
   }
 
   async function handleFile(file?: File) {
-    if (!file) return;
+    if (!file || !token) return;
     const allowed = ["application/pdf", "application/vnd.openxmlformats-officedocument.wordprocessingml.document", "text/plain"];
     const hasAllowedExtension = /\.(pdf|docx|txt)$/i.test(file.name);
 
     if (!allowed.includes(file.type) && !hasAllowedExtension) {
-      setError("Formato não suportado. Envie PDF, DOCX ou TXT. Arquivos .doc antigos não entram neste fluxo.");
+      setError("Formato não suportado. Envie PDF, DOCX ou TXT.");
       return;
     }
 
@@ -193,7 +272,7 @@ export default function Home() {
     setFileInfo(`Lendo ${file.name} · ${formatFileSize(file.size)}`);
 
     try {
-      const extracted = await extractDocument(file);
+      const extracted = await extractDocument(file, token);
       setResumeText(extracted.text);
       setFileInfo(`${extracted.filename} · ${extracted.characters.toLocaleString("pt-BR")} caracteres extraídos`);
     } catch (err) {
@@ -217,12 +296,12 @@ export default function Home() {
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!token) return;
     setError("");
     setLoading(true);
     try {
-      const analysis = await createAnalysis(resumeText.trim(), jobText.trim());
+      const analysis = await createAnalysis(resumeText.trim(), jobText.trim(), token);
       setResult(analysis);
-      setActiveHistoryId(analysis.id);
       setHistory((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao analisar currículo.");
@@ -231,158 +310,70 @@ export default function Home() {
     }
   }
 
-
-  async function handleDeleteAnalysis(id: number, candidateName: string) {
-    const confirmed = window.confirm(
-      `Tem certeza que deseja excluir a análise de ${candidateName}? Essa ação remove o registro do histórico.`
-    );
-
+  async function handleDelete(id: number, candidateName: string) {
+    if (!token) return;
+    const confirmed = window.confirm(`Excluir a análise de ${candidateName}?`);
     if (!confirmed) return;
-
-    setError("");
     setDeletingId(id);
-
+    setError("");
     try {
-      await deleteAnalysis(id);
-
-      setHistory((current) => {
-        const updated = current.filter((item) => item.id !== id);
-
-        if (activeHistoryId === id) {
-          setActiveHistoryId(updated[0]?.id ?? null);
-        }
-
-        return updated;
-      });
-
-      if (result?.id === id) {
-        setResult(null);
-      }
+      await deleteAnalysis(id, token);
+      setHistory((current) => current.filter((item) => item.id !== id));
+      if (result?.id === id) setResult(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível excluir a análise.");
+      setError(err instanceof Error ? err.message : "Não foi possível excluir.");
     } finally {
       setDeletingId(null);
     }
   }
 
-  function fillSample() {
-    setResumeText(sampleResume);
-    setJobText(sampleJob);
-    setFileInfo("Exemplo carregado para demonstração");
-    setError("");
-  }
-
-  function clearForm() {
-    setResumeText("");
-    setJobText("");
-    setResult(null);
-    setFileInfo("");
-    setError("");
+  if (!token || !user) {
+    return <AuthPanel onAuth={onAuth} theme={theme} setTheme={setTheme} />;
   }
 
   return (
     <main className="app-shell">
-      <section className="hero-grid">
-        <div className="hero-card hero-copy">
-          <div className="hero-topbar">
-            <div className="brand-row">
-              <span className="brand-mark">ai</span>
-              <span>Triador AIIA · Candidate Intelligence</span>
-            </div>
-
-            <button
-              className="theme-toggle"
-              type="button"
-              onClick={toggleTheme}
-              aria-pressed={theme === "dark"}
-              aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
-              title={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
-            >
-              <span className="theme-toggle-icon" aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
-              <span>{theme === "dark" ? "Modo claro" : "Modo escuro"}</span>
-            </button>
-          </div>
-          <h1>Uma central inteligente para transformar currículos em decisões de triagem.</h1>
-          <p>
-            Faça upload do currículo, cole a vaga e gere uma avaliação estruturada com score, skills, experiência,
-            resumo executivo e histórico persistido. Visual pensado para parecer produto real, não apenas teste técnico.
-          </p>
-          <div className="hero-actions">
-            <button className="primary large" type="button" onClick={() => fileInputRef.current?.click()}>
-              Enviar currículo
-            </button>
-            <button className="secondary large" type="button" onClick={fillSample}>
-              Rodar demo guiada
-            </button>
-          </div>
+      <SmokeLayer />
+      <header className="workspace-header glass-panel">
+        <div className="brand-mark"><span>ai</span><strong>Triador AIIA</strong></div>
+        <div className="user-zone">
+          <div className="user-chip"><Icon name="lock" /> {user.name}</div>
+          <button className="ghost-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} type="button">{theme === "dark" ? "Modo claro" : "Modo escuro"}</button>
+          <button className="icon-button" onClick={logout} type="button" title="Sair"><Icon name="logout" /></button>
         </div>
+      </header>
 
-        <aside className="hero-card command-panel">
-          <div className="panel-topline">
-            <span className={`pulse ${health ? "online" : "offline"}`} />
-            <div>
-              <strong>{health ? "Sistema operacional" : initialLoading ? "Sincronizando API" : "API indisponível"}</strong>
-              <small>{health ? `${provider} · ${health.database}` : "localhost:8000"}</small>
-            </div>
-          </div>
-          <div className="readiness" style={{ "--readiness": readiness } as CSSProperties}>
-            <div>
-              <span>Prontidão</span>
-              <strong>{readiness}%</strong>
-            </div>
-          </div>
-          <Stepper resumeReady={resumeReady} jobReady={jobReady} resultReady={Boolean(result)} />
-        </aside>
+      <section className="dashboard-hero glass-panel">
+        <div className="hero-copy">
+          <span className="eyebrow"><Icon name="briefcase" /> Workspace privado</span>
+          <h1>Compare candidatos com precisão, contexto e histórico isolado.</h1>
+          <p>Seu banco de currículos é independente dos demais usuários. Envie um arquivo, cole a vaga e receba uma análise estruturada com Gemini e validação backend.</p>
+        </div>
+        <div className="readiness-card">
+          <span>Prontidão</span>
+          <strong>{readiness}%</strong>
+          <div className="meter"><span style={{ width: `${readiness}%` }} /></div>
+          <small>{provider} · {health?.database ?? "sqlite"}</small>
+        </div>
       </section>
 
-      <section className="kpi-grid" aria-label="Indicadores principais">
-        <article>
-          <span>Análises no banco</span>
-          <strong>{history.length}</strong>
-          <small>histórico consultável</small>
-        </article>
-        <article>
-          <span>Média de aderência</span>
-          <strong>{averageScore}/100</strong>
-          <small>baseada no histórico</small>
-        </article>
-        <article>
-          <span>Provider ativo</span>
-          <strong>{provider}</strong>
-          <small>configurado no backend</small>
-        </article>
-        <article>
-          <span>Entrada aceita</span>
-          <strong>PDF · DOCX · TXT</strong>
-          <small>extração server-side</small>
-        </article>
+      <section className="metrics-grid">
+        <div className="metric-card"><Icon name="file" /><span>Análises no banco</span><strong>{history.length}</strong><small>visíveis somente para sua conta</small></div>
+        <div className="metric-card"><Icon name="spark" /><span>Média de aderência</span><strong>{averageScore}/100</strong><small>baseada no seu histórico</small></div>
+        <div className="metric-card"><Icon name="office" /><span>Entrada aceita</span><strong>PDF · DOCX · TXT</strong><small>extração server-side</small></div>
       </section>
 
-      {health?.llm_provider === "mock" && (
-        <div className="notice warning">
-          O backend está em modo mock. Para usar Gemini real, ajuste <code>LLM_PROVIDER=gemini</code> e <code>GEMINI_API_KEY</code> no <code>backend/.env</code>.
-        </div>
-      )}
-      {health?.llm_provider === "gemini" && (
-        <div className="notice success">Gemini conectado. A chave fica somente no backend, protegida fora do navegador.</div>
-      )}
-      {error && <div className="notice danger">{error}</div>}
+      {error && <div className="alert error">{error}</div>}
 
-      <section className="workspace-grid">
-        <form className="glass-card form-card" onSubmit={onSubmit}>
-          <div className="card-title-row">
-            <div>
-              <span className="eyebrow">Entrada de dados</span>
-              <h2>Currículo + descrição da vaga</h2>
-              <p>Revise o texto extraído antes de acionar o modelo. Isso demonstra controle humano sobre a IA.</p>
-            </div>
-            <button className="icon-button" type="button" onClick={boot} title="Atualizar status e histórico">
-              ↻
-            </button>
+      <section className="workbench-grid">
+        <form className="analysis-panel glass-panel" onSubmit={onSubmit}>
+          <div className="section-heading">
+            <span><Icon name="upload" /></span>
+            <div><h2>Nova análise</h2><p>Envie currículo e informe a vaga alvo.</p></div>
           </div>
 
           <div
-            className={`dropzone ${dragging ? "dragging" : ""} ${extracting ? "loading" : ""}`}
+            className={`dropzone ${dragging ? "dragging" : ""}`}
             onDragOver={(event) => { event.preventDefault(); setDragging(true); }}
             onDragLeave={() => setDragging(false)}
             onDrop={onDrop}
@@ -390,204 +381,59 @@ export default function Home() {
             role="button"
             tabIndex={0}
           >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".pdf,.docx,.txt,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain"
-              onChange={onFileChange}
-              hidden
-            />
-            <div className="drop-icon">↑</div>
-            <div>
-              <strong>{extracting ? "Extraindo texto do currículo..." : "Arraste ou selecione o currículo"}</strong>
-              <span>PDF, DOCX ou TXT. O texto é extraído no backend e aparece para conferência.</span>
-            </div>
-            <button className="secondary compact" type="button">Selecionar arquivo</button>
+            <Icon name="file" />
+            <strong>{extracting ? "Extraindo currículo..." : "Enviar currículo"}</strong>
+            <span>{fileInfo || "Arraste ou selecione PDF, DOCX ou TXT"}</span>
+            <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt" onChange={onFileChange} hidden />
           </div>
 
-          {fileInfo && <div className="file-pill">✓ {fileInfo}</div>}
+          <label className="field-block">Texto extraído do currículo
+            <textarea value={resumeText} onChange={(event) => setResumeText(event.target.value)} placeholder="O texto do currículo aparecerá aqui após o upload." rows={8} />
+            <small>{wordCount(resumeText)} palavras</small>
+          </label>
 
-          <div className="editor-grid">
-            <label className="field-card">
-              <div className="field-header">
-                <strong>Currículo extraído</strong>
-                <span>{wordCount(resumeText)} palavras</span>
-              </div>
-              <textarea
-                value={resumeText}
-                onChange={(event) => setResumeText(event.target.value)}
-                placeholder="Faça upload de um currículo ou cole o texto manualmente."
-              />
-            </label>
-            <label className="field-card">
-              <div className="field-header">
-                <strong>Vaga alvo</strong>
-                <span>{wordCount(jobText)} palavras</span>
-              </div>
-              <textarea
-                value={jobText}
-                onChange={(event) => setJobText(event.target.value)}
-                placeholder="Cole a descrição da vaga, requisitos técnicos, senioridade e diferenciais."
-              />
-            </label>
+          <label className="field-block">Descrição da vaga
+            <textarea value={jobText} onChange={(event) => setJobText(event.target.value)} placeholder="Cole a descrição da vaga aqui." rows={8} />
+            <small>{wordCount(jobText)} palavras</small>
+          </label>
+
+          <div className="suggestion-board">
+            <strong>Sugestões de uso</strong>
+            {suggestionSlots.map((suggestion) => <span key={suggestion}>{suggestion}</span>)}
           </div>
 
-          <div className="sticky-action-bar">
-            <div className="micro-hint">
-              <strong>{canSubmit ? "Tudo pronto para analisar" : "Complete currículo e vaga"}</strong>
-              <span>{resumeReady ? "Currículo ok" : "Currículo precisa de mais texto"} · {jobReady ? "Vaga ok" : "Vaga precisa de mais contexto"}</span>
-            </div>
-            <div className="action-cluster">
-              <button className="ghost" type="button" onClick={clearForm}>Limpar</button>
-              <button className="primary" type="submit" disabled={!canSubmit}>
-                {loading ? "Analisando..." : "Analisar aderência"}
-              </button>
-            </div>
-          </div>
+          <button className="primary-button" disabled={!canSubmit} type="submit">{loading ? "Analisando com IA..." : "Gerar análise"}</button>
         </form>
 
-        <aside className="side-stack">
-          <section className="glass-card result-card">
-            <div className="card-title-row compact-row">
-              <div>
-                <span className="eyebrow">Resultado executivo</span>
-                <h2>Decisão sugerida</h2>
-              </div>
+        <aside className="result-panel glass-panel">
+          <div className="section-heading"><span><Icon name="spark" /></span><div><h2>Resultado executivo</h2><p>Score, decisão sugerida e justificativa.</p></div></div>
+          {loading ? <div className="loading-card">A IA está validando aderência, skills e experiência...</div> : activeResult ? (
+            <div className="result-card">
+              <div className="score-ring"><strong>{activeResult.fit_score}</strong><span>/100</span></div>
+              <h3>{activeResult.candidate_name}</h3>
+              <p className="verdict">{fitVerdict(activeResult.fit_score)} · {scoreLabel(activeResult.fit_score)}</p>
+              <p>{activeResult.summary}</p>
+              <div className="skill-cloud">{activeResult.skills.map((skill) => <span key={skill}>{skill}</span>)}</div>
             </div>
-
-            {loading && <ResultSkeleton />}
-
-            {!loading && !result && (
-              <div className="empty-state">
-                <span>◇</span>
-                <strong>Nenhuma análise nesta sessão</strong>
-                <p>Envie um currículo e uma vaga para visualizar score, skills e justificativa aqui.</p>
-              </div>
-            )}
-
-            {!loading && result && (
-              <div className="result-content">
-                <div className="candidate-line">
-                  <div>
-                    <small>Candidato</small>
-                    <strong>{result.candidate_name}</strong>
-                    <span className={`status-pill ${scoreTone(result.fit_score)}`}>{scoreLabel(result.fit_score)}</span>
-                  </div>
-                  <div className="score-ring" style={{ "--score": result.fit_score } as CSSProperties}>
-                    <strong>{result.fit_score}</strong>
-                    <small>/100</small>
-                  </div>
-                </div>
-
-                <div className="decision-box">
-                  <span>Recomendação</span>
-                  <strong>{fitVerdict(result.fit_score)}</strong>
-                  <p>{result.summary}</p>
-                </div>
-
-                <div className="two-stat-grid">
-                  <div>
-                    <span>Experiência estimada</span>
-                    <strong>{result.years_experience} ano(s)</strong>
-                  </div>
-                  <div>
-                    <span>Skills detectadas</span>
-                    <strong>{result.skills.length}</strong>
-                  </div>
-                </div>
-
-                <ul className="skill-cloud">
-                  {result.skills.map((skill) => <li key={skill}>{skill}</li>)}
-                </ul>
-              </div>
-            )}
-          </section>
-
-          <section className="glass-card insight-card">
-            <div className="card-title-row compact-row">
-              <div>
-                <span className="eyebrow">Inteligência do histórico</span>
-                <h2>Skills recorrentes</h2>
-              </div>
-            </div>
-            {topSkills.length ? (
-              <ul className="skill-cloud subtle">
-                {topSkills.map((skill) => <li key={skill}>{skill}</li>)}
-              </ul>
-            ) : (
-              <p className="muted-text">As skills aparecerão aqui conforme novas análises forem salvas.</p>
-            )}
-          </section>
+          ) : <div className="empty-state">Nenhuma análise gerada ainda.</div>}
         </aside>
       </section>
 
-      <section className="history-section glass-card">
-        <div className="card-title-row">
-          <div>
-            <span className="eyebrow">Auditoria</span>
-            <h2>Histórico de análises</h2>
-            <p>Lista persistida no banco relacional. Clique em uma análise para revisar a leitura resumida.</p>
-          </div>
-          <span className="history-count">{history.length} registros</span>
+      <section className="history-section glass-panel">
+        <div className="section-heading"><span><Icon name="briefcase" /></span><div><h2>Histórico privado</h2><p>Somente análises criadas pela sua conta aparecem aqui.</p></div></div>
+        <div className="history-list">
+          {history.length ? history.map((item) => (
+            <article className="history-item" key={item.id}>
+              <button className="history-main" type="button" onClick={() => setResult(item)}>
+                <strong>{item.candidate_name}</strong>
+                <span>{item.fit_score}/100 · {formatDate(item.created_at)}</span>
+              </button>
+              <button className="danger-button" onClick={() => handleDelete(item.id, item.candidate_name)} disabled={deletingId === item.id} type="button">
+                <Icon name="trash" /> {deletingId === item.id ? "Excluindo" : "Excluir"}
+              </button>
+            </article>
+          )) : <div className="empty-state">Seu histórico ainda está vazio.</div>}
         </div>
-
-        {!history.length && <div className="empty-inline">Ainda não existe histórico. Faça a primeira análise.</div>}
-
-        {!!history.length && (
-          <div className="history-grid">
-            <div className="history-list">
-              {history.map((item) => (
-                <div
-                  className={`history-row ${activeHistory?.id === item.id ? "selected" : ""}`}
-                  key={item.id}
-                >
-                  <button
-                    type="button"
-                    className="history-select"
-                    onClick={() => setActiveHistoryId(item.id)}
-                    aria-label={`Abrir análise de ${item.candidate_name}`}
-                  >
-                    <span className={`mini-score ${scoreTone(item.fit_score)}`}>{item.fit_score}</span>
-                    <span>
-                      <strong>{item.candidate_name}</strong>
-                      <small>{formatDate(item.created_at)} · {scoreLabel(item.fit_score)}</small>
-                    </span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="delete-analysis-button"
-                    onClick={() => handleDeleteAnalysis(item.id, item.candidate_name)}
-                    disabled={deletingId === item.id}
-                    aria-label={`Excluir análise de ${item.candidate_name}`}
-                    title="Excluir análise"
-                  >
-                    {deletingId === item.id ? "Excluindo..." : "Excluir"}
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {activeHistory && (
-              <article className="history-preview">
-                <div className="candidate-line small-line">
-                  <div>
-                    <small>Análise selecionada</small>
-                    <strong>{activeHistory.candidate_name}</strong>
-                    <span className={`status-pill ${scoreTone(activeHistory.fit_score)}`}>{fitVerdict(activeHistory.fit_score)}</span>
-                  </div>
-                  <div className="score-ring small" style={{ "--score": activeHistory.fit_score } as CSSProperties}>
-                    <strong>{activeHistory.fit_score}</strong>
-                  </div>
-                </div>
-                <p>{activeHistory.summary}</p>
-                <ul className="skill-cloud subtle">
-                  {activeHistory.skills.map((skill) => <li key={skill}>{skill}</li>)}
-                </ul>
-              </article>
-            )}
-          </div>
-        )}
       </section>
     </main>
   );
