@@ -1128,3 +1128,301 @@ input:focus, textarea:focus { border-color: rgba(103,183,255,.55); box-shadow: 0
   .resume-carousel-card { width: 250px; min-height: 174px; border-radius: 24px; }
   .resume-detail-main, .resume-detail-score, .resume-detail-note { padding: 18px; border-radius: 24px; }
 }
+
+/* Workspace visual alinhado ao protótipo inicial */
+.app-shell {
+  width: 100%;
+  max-width: none;
+  min-height: 100vh;
+  margin: 0;
+  padding: 0 28px 32px;
+  background: #050505;
+  color: #fff;
+}
+.app-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  background:
+    radial-gradient(circle at 50% 0%, rgba(255,255,255,.115), transparent 28%),
+    linear-gradient(to bottom, #000 0%, #050505 72%, #050505 100%);
+}
+.app-shell .glass-panel {
+  border-color: rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  color: #fff;
+  box-shadow: 0 30px 90px rgba(0,0,0,.38);
+  backdrop-filter: blur(22px);
+}
+.workspace-proto-nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  padding: 24px 0 18px;
+  background: linear-gradient(to bottom, rgba(5,5,5,.92), rgba(5,5,5,.72) 70%, transparent);
+  backdrop-filter: blur(14px);
+}
+.workspace-proto-nav .proto-brand,
+.workspace-proto-nav .proto-menu,
+.workspace-proto-nav .proto-login-button {
+  animation: none;
+}
+.workspace-proto-nav .proto-menu a {
+  color: rgba(255,255,255,.60);
+}
+.workspace-proto-nav .proto-menu a:hover {
+  color: #fff;
+}
+.app-shell .dashboard-hero,
+.app-shell .metrics-grid,
+.app-shell .resume-experience,
+.app-shell .workbench-grid,
+.app-shell .history-section {
+  width: min(1280px, calc(100% - 0px));
+  margin-left: auto;
+  margin-right: auto;
+}
+.app-shell .dashboard-hero {
+  margin-top: 12px;
+  background:
+    radial-gradient(circle at 85% 20%, rgba(255,255,255,.10), transparent 30%),
+    rgba(255,255,255,.04);
+}
+.app-shell .eyebrow,
+.app-shell .proto-kicker {
+  color: rgba(255,255,255,.42);
+}
+.app-shell .hero-copy p,
+.app-shell .metric-card small,
+.app-shell .resume-experience-head p,
+.app-shell .resume-detail-main p:not(.proto-kicker),
+.app-shell .resume-detail-note p,
+.app-shell .field-block small,
+.app-shell .section-heading p,
+.app-shell .history-main span {
+  color: rgba(255,255,255,.56);
+}
+.app-shell .metric-card,
+.app-shell .analysis-panel,
+.app-shell .result-panel,
+.app-shell .history-section,
+.app-shell .resume-detail-main,
+.app-shell .resume-detail-note {
+  border-color: rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+}
+.app-shell .primary-button,
+.app-shell .resume-jump {
+  background: #fff;
+  color: #000;
+  box-shadow: 0 0 48px rgba(255,255,255,.16);
+}
+.app-shell .ghost-button,
+.app-shell .icon-button,
+.app-shell .danger-button {
+  border-color: rgba(255,255,255,.14);
+  color: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.05);
+}
+.app-shell .dropzone,
+.app-shell textarea,
+.app-shell input {
+  border-color: rgba(255,255,255,.12);
+  background: rgba(0,0,0,.22);
+  color: #fff;
+}
+.app-shell .dropzone:hover,
+.app-shell .dropzone.dragging {
+  border-color: rgba(255,255,255,.34);
+  background: rgba(255,255,255,.07);
+}
+.dropzone-preview-name {
+  display: block;
+  margin-top: 8px;
+  color: rgba(255,255,255,.48);
+  font-size: .78rem;
+  font-weight: 800;
+}
+.resume-carousel-card {
+  width: clamp(270px, 27vw, 360px);
+  min-height: 360px;
+  padding: 12px;
+  gap: 12px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 20% 0%, rgba(255,255,255,.12), transparent 34%),
+    rgba(255,255,255,.045);
+}
+.resume-document-preview {
+  position: relative;
+  width: 100%;
+  height: 222px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: inset 0 0 0 1px rgba(0,0,0,.035);
+}
+.resume-pdf-frame {
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: #fff;
+  pointer-events: none;
+  transform: scale(1.02);
+  transform-origin: top center;
+}
+.resume-document-cover {
+  width: 100%;
+  height: 100%;
+  padding: 18px;
+  color: #080808;
+  background:
+    linear-gradient(135deg, rgba(0,0,0,.04), transparent 28%),
+    repeating-linear-gradient(to bottom, transparent 0 30px, rgba(0,0,0,.045) 31px 32px),
+    #fff;
+}
+.resume-document-topline {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 24px;
+}
+.resume-document-topline span,
+.resume-document-topline i {
+  display: inline-grid;
+  place-items: center;
+  min-width: 42px;
+  min-height: 34px;
+  border-radius: 12px;
+  background: #050505;
+  color: #fff;
+  font-size: .78rem;
+  font-style: normal;
+  font-weight: 1000;
+  letter-spacing: .04em;
+}
+.resume-document-cover strong {
+  display: block;
+  color: #050505;
+  font-size: 1.55rem;
+  line-height: .96;
+  letter-spacing: -.06em;
+}
+.resume-document-cover small {
+  display: block;
+  margin-top: 8px;
+  color: rgba(0,0,0,.54);
+  font-size: .76rem;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resume-document-lines {
+  display: grid;
+  gap: 8px;
+  margin-top: 24px;
+}
+.resume-document-lines b {
+  display: block;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0,0,0,.12);
+}
+.resume-document-lines b:nth-child(2) { width: 76%; }
+.resume-document-lines b:nth-child(3) { width: 88%; }
+.resume-document-lines b:nth-child(4) { width: 56%; }
+.resume-card-body {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 6px 6px 8px;
+}
+.resume-card-body span {
+  grid-row: span 2;
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: #fff;
+  color: #000;
+  font-size: 1.45rem;
+  font-weight: 1000;
+  letter-spacing: -.07em;
+}
+.resume-card-body strong {
+  min-width: 0;
+  display: block;
+  color: #fff;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: -.045em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resume-card-body small {
+  display: block;
+  margin-top: 5px;
+  color: rgba(255,255,255,.48);
+  font-size: .75rem;
+  font-weight: 900;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.resume-card-body i {
+  grid-column: 1 / -1;
+  color: rgba(255,255,255,.56);
+  font-style: normal;
+  font-size: .82rem;
+  line-height: 1.45;
+}
+.resume-carousel-card > span,
+.resume-carousel-card > strong,
+.resume-carousel-card > small,
+.resume-carousel-card > i {
+  display: none;
+}
+.resume-file-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+  margin-top: 18px;
+  padding: 14px 16px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: rgba(255,255,255,.045);
+}
+.resume-file-meta strong {
+  color: #fff;
+  font-size: .92rem;
+}
+.resume-file-meta span {
+  color: rgba(255,255,255,.48);
+  font-size: .82rem;
+  font-weight: 800;
+}
+@media (max-width: 980px) {
+  .app-shell { padding: 0 16px 24px; }
+  .workspace-proto-nav { width: min(100%, 1280px); }
+  .resume-carousel-card { width: 292px; min-height: 344px; }
+  .resume-document-preview { height: 206px; }
+}
+@media (max-width: 620px) {
+  .app-shell { padding: 0 10px 20px; }
+  .workspace-proto-nav {
+    align-items: flex-start;
+    flex-direction: column;
+    width: min(100%, 1280px);
+  }
+  .workspace-proto-nav .proto-login-button { width: 100%; }
+  .resume-carousel-card { width: 270px; min-height: 330px; }
+  .resume-document-preview { height: 190px; border-radius: 20px; }
+}

@@ -19,6 +19,14 @@ type Theme = "dark" | "light";
 type AuthMode = "login" | "register";
 
 
+type ResumeFilePreview = {
+  fileName: string;
+  fileType: string;
+  fileSize: number;
+  previewUrl?: string;
+  uploadedAt: string;
+};
+
 type ResumeCarouselItem = {
   id: string;
   candidate_name: string;
@@ -28,6 +36,7 @@ type ResumeCarouselItem = {
   years_experience: number;
   created_at: string;
   source: "history" | "demo";
+  file: ResumeFilePreview;
 };
 
 const STORAGE_TOKEN = "triador_access_token";
@@ -304,6 +313,12 @@ const demoResumeItems: ResumeCarouselItem[] = [
     skills: ["Spring Boot", "React", "Oracle SQL", "APIs REST"],
     years_experience: 2,
     created_at: new Date().toISOString(),
+    file: {
+      fileName: "fullstack-java.pdf",
+      fileType: "application/pdf",
+      fileSize: 428000,
+      uploadedAt: new Date().toISOString(),
+    },
     source: "demo",
   },
   {
@@ -314,6 +329,12 @@ const demoResumeItems: ResumeCarouselItem[] = [
     skills: ["React", "Next.js", "UI/UX", "TypeScript"],
     years_experience: 1,
     created_at: new Date().toISOString(),
+    file: {
+      fileName: "frontend-ux.pdf",
+      fileType: "application/pdf",
+      fileSize: 392000,
+      uploadedAt: new Date().toISOString(),
+    },
     source: "demo",
   },
   {
@@ -324,6 +345,12 @@ const demoResumeItems: ResumeCarouselItem[] = [
     skills: ["PostgreSQL", "MySQL", "Oracle", "Python"],
     years_experience: 1,
     created_at: new Date().toISOString(),
+    file: {
+      fileName: "dados-banco.pdf",
+      fileType: "application/pdf",
+      fileSize: 365000,
+      uploadedAt: new Date().toISOString(),
+    },
     source: "demo",
   },
   {
@@ -334,11 +361,33 @@ const demoResumeItems: ResumeCarouselItem[] = [
     skills: ["LLM", "Gemini", "Tokens", "Prompting"],
     years_experience: 1,
     created_at: new Date().toISOString(),
+    file: {
+      fileName: "ia-aplicada.pdf",
+      fileType: "application/pdf",
+      fileSize: 441000,
+      uploadedAt: new Date().toISOString(),
+    },
     source: "demo",
   },
 ];
 
-function toCarouselItem(item: Analysis): ResumeCarouselItem {
+function createSyntheticResumeFile(item: Analysis): ResumeFilePreview {
+  const safeName = item.candidate_name
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "") || "curriculo";
+
+  return {
+    fileName: `${safeName}.pdf`,
+    fileType: "application/pdf",
+    fileSize: 0,
+    uploadedAt: item.created_at,
+  };
+}
+
+function toCarouselItem(item: Analysis, file?: ResumeFilePreview): ResumeCarouselItem {
   return {
     id: `history-${item.id}`,
     candidate_name: item.candidate_name,
@@ -347,8 +396,38 @@ function toCarouselItem(item: Analysis): ResumeCarouselItem {
     skills: item.skills,
     years_experience: item.years_experience,
     created_at: item.created_at,
+    file: file ?? createSyntheticResumeFile(item),
     source: "history",
   };
+}
+
+function isPdfFile(file: ResumeFilePreview) {
+  return file.fileType.includes("pdf") || /\.pdf$/i.test(file.fileName);
+}
+
+function ResumeDocumentPreview({ item }: { item: ResumeCarouselItem }) {
+  const file = item.file;
+  const extension = file.fileName.split(".").pop()?.toUpperCase() || "PDF";
+  const hasPdfPreview = Boolean(file.previewUrl && isPdfFile(file));
+
+  return (
+    <div className="resume-document-preview" aria-label={`Prévia do arquivo ${file.fileName}`}>
+      {hasPdfPreview ? (
+        <iframe
+          className="resume-pdf-frame"
+          src={`${file.previewUrl}#toolbar=0&navpanes=0&scrollbar=0&page=1&view=FitH`}
+          title={`Prévia de ${file.fileName}`}
+        />
+      ) : (
+        <div className="resume-document-cover">
+          <div className="resume-document-topline"><span>{extension}</span><i>{item.fit_score}</i></div>
+          <strong>{item.candidate_name}</strong>
+          <small>{file.fileName}</small>
+          <div className="resume-document-lines"><b /><b /><b /><b /></div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: User) => void; theme: Theme; setTheme: (theme: Theme) => void }) {
@@ -542,6 +621,8 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
   const [fileInfo, setFileInfo] = useState("");
+  const [pendingFilePreview, setPendingFilePreview] = useState<ResumeFilePreview | null>(null);
+  const [resumePreviews, setResumePreviews] = useState<Record<number, ResumeFilePreview>>({});
   const [parallaxY, setParallaxY] = useState(0);
   const [selectedCarouselId, setSelectedCarouselId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
@@ -554,11 +635,11 @@ export default function Home() {
   const averageScore = history.length ? Math.round(history.reduce((sum, item) => sum + item.fit_score, 0) / history.length) : 0;
   const activeResult = result ?? history[0] ?? null;
   const resumeCarouselItems = useMemo(() => {
-    const privateItems = history.map(toCarouselItem);
+    const privateItems = history.map((item) => toCarouselItem(item, resumePreviews[item.id]));
     return privateItems.length ? privateItems : demoResumeItems;
-  }, [history]);
+  }, [history, resumePreviews]);
   const selectedResume = selectedCarouselId ? resumeCarouselItems.find((item) => item.id === selectedCarouselId) ?? null : null;
-  const activeHistoryResume = activeResult ? toCarouselItem(activeResult) : null;
+  const activeHistoryResume = activeResult ? toCarouselItem(activeResult, resumePreviews[activeResult.id]) : null;
   const featuredResume = selectedResume ?? activeHistoryResume ?? resumeCarouselItems[0];
   const loopResumeItems = [...resumeCarouselItems, ...resumeCarouselItems, ...resumeCarouselItems];
 
@@ -614,6 +695,7 @@ export default function Home() {
       });
   }, []);
 
+
   async function onAuth(authToken: string, authUser: User) {
     setToken(authToken);
     setUser(authUser);
@@ -626,6 +708,12 @@ export default function Home() {
     setUser(null);
     setHistory([]);
     setResult(null);
+    Object.values(resumePreviews).forEach((preview: ResumeFilePreview) => {
+      if (preview.previewUrl) URL.revokeObjectURL(preview.previewUrl);
+    });
+    if (pendingFilePreview?.previewUrl) URL.revokeObjectURL(pendingFilePreview.previewUrl);
+    setResumePreviews({});
+    setPendingFilePreview(null);
     setResumeText("");
     setJobText("");
   }
@@ -640,7 +728,17 @@ export default function Home() {
       return;
     }
 
+    const fileIsPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name);
+    const nextPreview: ResumeFilePreview = {
+      fileName: file.name,
+      fileType: file.type || (fileIsPdf ? "application/pdf" : "application/octet-stream"),
+      fileSize: file.size,
+      previewUrl: fileIsPdf ? URL.createObjectURL(file) : undefined,
+      uploadedAt: new Date().toISOString(),
+    };
+
     setError("");
+    setPendingFilePreview(nextPreview);
     setExtracting(true);
     setFileInfo(`Lendo ${file.name} · ${formatFileSize(file.size)}`);
 
@@ -676,6 +774,9 @@ export default function Home() {
       const analysis = await createAnalysis(resumeText.trim(), jobText.trim(), token);
       setResult(analysis);
       setSelectedCarouselId(`history-${analysis.id}`);
+      if (pendingFilePreview) {
+        setResumePreviews((current) => ({ ...current, [analysis.id]: pendingFilePreview }));
+      }
       setHistory((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao analisar currículo.");
@@ -692,6 +793,13 @@ export default function Home() {
     setError("");
     try {
       await deleteAnalysis(id, token);
+      const previewToRemove = resumePreviews[id];
+      if (previewToRemove?.previewUrl) URL.revokeObjectURL(previewToRemove.previewUrl);
+      setResumePreviews((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
       setHistory((current) => current.filter((item) => item.id !== id));
       if (result?.id === id) setResult(null);
       if (selectedCarouselId === `history-${id}`) setSelectedCarouselId(null);
@@ -709,14 +817,25 @@ export default function Home() {
   return (
     <main className="app-shell">
       <SmokeLayer />
-      <header className="workspace-header glass-panel">
-        <div className="brand-mark"><span>ai</span><strong>Triador AIIA</strong></div>
-        <div className="user-zone">
-          <div className="user-chip"><Icon name="lock" /> {user.name}</div>
-          <button className="ghost-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} type="button">{theme === "dark" ? "Modo claro" : "Modo escuro"}</button>
-          <button className="icon-button" onClick={logout} type="button" title="Sair"><Icon name="logout" /></button>
+      <nav className="proto-nav workspace-proto-nav">
+        <div className="proto-brand">
+          <div className="proto-brand-icon"><Icon name="briefcase" /></div>
+          <div>
+            <p>TRIADOR AIIA</p>
+            <span>{user.name} · AI Resume Platform</span>
+          </div>
         </div>
-      </header>
+
+        <div className="proto-menu">
+          <a href="#analysis-experience">Currículos</a>
+          <a href="#analysis-form">Nova análise</a>
+          <a href="#history">Histórico</a>
+        </div>
+
+        <button className="proto-login-button" onClick={logout} type="button">
+          Sair
+        </button>
+      </nav>
 
       <section className="dashboard-hero glass-panel">
         <div className="hero-copy">
@@ -738,7 +857,7 @@ export default function Home() {
         <div className="metric-card"><Icon name="office" /><span>Entrada aceita</span><strong>PDF · DOCX · TXT</strong><small>extração server-side</small></div>
       </section>
 
-      <section className="resume-experience glass-panel" style={{ "--parallax-y": `${parallaxY}px` } as CSSProperties}>
+      <section className="resume-experience glass-panel" id="analysis-experience" style={{ "--parallax-y": `${parallaxY}px` } as CSSProperties}>
         <div className="resume-parallax-orb resume-orb-a" />
         <div className="resume-parallax-orb resume-orb-b" />
         <div className="resume-experience-head">
@@ -769,10 +888,15 @@ export default function Home() {
                     }
                   }}
                 >
-                  <span>{item.fit_score}</span>
-                  <strong>{item.candidate_name}</strong>
-                  <small>{item.source === "history" ? formatDate(item.created_at) : "exemplo visual"}</small>
-                  <i>{item.skills.slice(0, 3).join(" · ")}</i>
+                  <ResumeDocumentPreview item={item} />
+                  <div className="resume-card-body">
+                    <span>{item.fit_score}</span>
+                    <div>
+                      <strong>{item.candidate_name}</strong>
+                      <small>{item.file.fileName}</small>
+                    </div>
+                    <i>{item.skills.slice(0, 3).join(" · ")}</i>
+                  </div>
                 </button>
               );
             })}
@@ -787,6 +911,12 @@ export default function Home() {
             <div className="resume-tags">
               {(featuredResume?.skills ?? ["PDF", "DOCX", "TXT"]).slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}
             </div>
+            {featuredResume?.file && (
+              <div className="resume-file-meta">
+                <strong>{featuredResume.file.fileName}</strong>
+                <span>{featuredResume.file.fileSize ? formatFileSize(featuredResume.file.fileSize) : "arquivo do histórico"} · {isPdfFile(featuredResume.file) ? "PDF" : "documento"}</span>
+              </div>
+            )}
           </article>
 
           <article className="resume-detail-score">
@@ -823,6 +953,7 @@ export default function Home() {
             <Icon name="file" />
             <strong>{extracting ? "Extraindo currículo..." : "Enviar currículo"}</strong>
             <span>{fileInfo || "Arraste ou selecione PDF, DOCX ou TXT"}</span>
+            {pendingFilePreview && <small className="dropzone-preview-name">Prévia carregada no carrossel: {pendingFilePreview.fileName}</small>}
             <input ref={fileInputRef} type="file" accept=".pdf,.docx,.txt" onChange={onFileChange} hidden />
           </div>
 
@@ -858,7 +989,7 @@ export default function Home() {
         </aside>
       </section>
 
-      <section className="history-section glass-panel">
+      <section className="history-section glass-panel" id="history">
         <div className="section-heading"><span><Icon name="briefcase" /></span><div><h2>Histórico privado</h2><p>Somente análises criadas pela sua conta aparecem aqui.</p></div></div>
         <div className="history-list">
           {history.length ? history.map((item) => (
