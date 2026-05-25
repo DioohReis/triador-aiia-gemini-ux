@@ -692,3 +692,109 @@ button.compact { padding: 11px 14px; white-space: nowrap; }
   .hero-copy p { font-size: 15px; }
   .brand-row, .theme-toggle { font-size: 13px; }
 }
+
+/* Hotfix mobile/producao: garante que o layout nunca caia em visual quebrado no celular. */
+@media (max-width: 540px) {
+  html, body { width: 100%; overflow-x: hidden; }
+  body { -webkit-text-size-adjust: 100%; }
+
+  .app-shell {
+    width: 100%;
+    padding: 12px;
+  }
+
+  .hero-grid,
+  .workspace-grid,
+  .history-grid,
+  .kpi-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .hero-card,
+  .glass-card,
+  .command-panel,
+  .result-panel,
+  .history-card,
+  .kpi-grid article {
+    width: 100%;
+    min-width: 0;
+    border-radius: 20px;
+    padding: 16px;
+  }
+
+  .hero-topbar,
+  .brand-row,
+  .hero-actions,
+  .action-cluster,
+  .panel-header,
+  .result-header,
+  .history-item,
+  .metric-row,
+  .meta-row {
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .hero-copy h1 {
+    max-width: 100%;
+    font-size: clamp(36px, 13vw, 52px);
+    line-height: .96;
+    letter-spacing: -0.06em;
+    overflow-wrap: anywhere;
+  }
+
+  .hero-copy p {
+    max-width: 100%;
+    font-size: 15px;
+    line-height: 1.65;
+  }
+
+  .brand-pill,
+  .theme-toggle,
+  .primary-btn,
+  .secondary-btn,
+  .danger-btn,
+  .dropzone button,
+  .hero-actions button,
+  .action-cluster button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .brand-row { width: 100%; }
+  .brand-copy { min-width: 0; }
+  .brand-copy strong,
+  .brand-copy span,
+  .small-copy,
+  .muted,
+  .history-name,
+  .history-summary {
+    overflow-wrap: anywhere;
+  }
+
+  .stepper { gap: 10px; }
+  .step { grid-template-columns: 34px 1fr; padding: 12px; }
+  .step-index { width: 34px; height: 34px; }
+
+  textarea,
+  input,
+  button {
+    font-size: 16px;
+  }
+
+  .score-orb {
+    width: 150px;
+    height: 150px;
+    margin-inline: auto;
+  }
+
+  .toast,
+  .error-banner,
+  .success-banner {
+    font-size: 13px;
+    line-height: 1.45;
+    overflow-wrap: anywhere;
+  }
+}
