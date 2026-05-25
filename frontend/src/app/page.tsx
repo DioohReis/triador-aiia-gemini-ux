@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
+import { ChangeEvent, CSSProperties, DragEvent, FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import {
   Analysis,
   Health,
@@ -17,6 +17,18 @@ import {
 
 type Theme = "dark" | "light";
 type AuthMode = "login" | "register";
+
+
+type ResumeCarouselItem = {
+  id: string;
+  candidate_name: string;
+  fit_score: number;
+  summary: string;
+  skills: string[];
+  years_experience: number;
+  created_at: string;
+  source: "history" | "demo";
+};
 
 const STORAGE_TOKEN = "triador_access_token";
 const STORAGE_THEME = "triador_theme";
@@ -283,6 +295,62 @@ const landingFeatures = [
 
 const landingSteps = ["Login seguro", "Upload do currículo", "Vaga alvo", "Análise IA", "Histórico privado"];
 
+const demoResumeItems: ResumeCarouselItem[] = [
+  {
+    id: "demo-java",
+    candidate_name: "Fullstack Java",
+    fit_score: 92,
+    summary: "Perfil forte para vagas com Spring Boot, APIs REST, banco relacional e frontend moderno.",
+    skills: ["Spring Boot", "React", "Oracle SQL", "APIs REST"],
+    years_experience: 2,
+    created_at: new Date().toISOString(),
+    source: "demo",
+  },
+  {
+    id: "demo-front",
+    candidate_name: "Frontend UX",
+    fit_score: 86,
+    summary: "Boa aderência para interfaces responsivas, componentes reutilizáveis e experiência do usuário.",
+    skills: ["React", "Next.js", "UI/UX", "TypeScript"],
+    years_experience: 1,
+    created_at: new Date().toISOString(),
+    source: "demo",
+  },
+  {
+    id: "demo-data",
+    candidate_name: "Dados & Banco",
+    fit_score: 78,
+    summary: "Base sólida em modelagem, consultas SQL, persistência e integração com backend.",
+    skills: ["PostgreSQL", "MySQL", "Oracle", "Python"],
+    years_experience: 1,
+    created_at: new Date().toISOString(),
+    source: "demo",
+  },
+  {
+    id: "demo-ai",
+    candidate_name: "IA Aplicada",
+    fit_score: 88,
+    summary: "Destaque para uso de LLM, análise textual, prompts e automações inteligentes.",
+    skills: ["LLM", "Gemini", "Tokens", "Prompting"],
+    years_experience: 1,
+    created_at: new Date().toISOString(),
+    source: "demo",
+  },
+];
+
+function toCarouselItem(item: Analysis): ResumeCarouselItem {
+  return {
+    id: `history-${item.id}`,
+    candidate_name: item.candidate_name,
+    fit_score: item.fit_score,
+    summary: item.summary,
+    skills: item.skills,
+    years_experience: item.years_experience,
+    created_at: item.created_at,
+    source: "history",
+  };
+}
+
 function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: User) => void; theme: Theme; setTheme: (theme: Theme) => void }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
@@ -474,6 +542,8 @@ export default function Home() {
   const [dragging, setDragging] = useState(false);
   const [error, setError] = useState("");
   const [fileInfo, setFileInfo] = useState("");
+  const [parallaxY, setParallaxY] = useState(0);
+  const [selectedCarouselId, setSelectedCarouselId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const resumeReady = resumeText.trim().length >= 30;
@@ -483,6 +553,14 @@ export default function Home() {
   const readiness = (resumeReady ? 35 : 0) + (jobReady ? 35 : 0) + (health ? 30 : 0);
   const averageScore = history.length ? Math.round(history.reduce((sum, item) => sum + item.fit_score, 0) / history.length) : 0;
   const activeResult = result ?? history[0] ?? null;
+  const resumeCarouselItems = useMemo(() => {
+    const privateItems = history.map(toCarouselItem);
+    return privateItems.length ? privateItems : demoResumeItems;
+  }, [history]);
+  const selectedResume = selectedCarouselId ? resumeCarouselItems.find((item) => item.id === selectedCarouselId) ?? null : null;
+  const activeHistoryResume = activeResult ? toCarouselItem(activeResult) : null;
+  const featuredResume = selectedResume ?? activeHistoryResume ?? resumeCarouselItems[0];
+  const loopResumeItems = [...resumeCarouselItems, ...resumeCarouselItems, ...resumeCarouselItems];
 
   function setTheme(nextTheme: Theme) {
     setThemeState(nextTheme);
@@ -495,6 +573,25 @@ export default function Home() {
     setHealth(status);
     setHistory(items);
   }
+
+  useEffect(() => {
+    let frame = 0;
+
+    function handleScroll() {
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => {
+        setParallaxY(Math.min(window.scrollY, 900));
+      });
+    }
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
 
   useEffect(() => {
     const storedTheme = localStorage.getItem(STORAGE_THEME) as Theme | null;
@@ -578,6 +675,7 @@ export default function Home() {
     try {
       const analysis = await createAnalysis(resumeText.trim(), jobText.trim(), token);
       setResult(analysis);
+      setSelectedCarouselId(`history-${analysis.id}`);
       setHistory((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao analisar currículo.");
@@ -596,6 +694,7 @@ export default function Home() {
       await deleteAnalysis(id, token);
       setHistory((current) => current.filter((item) => item.id !== id));
       if (result?.id === id) setResult(null);
+      if (selectedCarouselId === `history-${id}`) setSelectedCarouselId(null);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível excluir.");
     } finally {
@@ -639,10 +738,74 @@ export default function Home() {
         <div className="metric-card"><Icon name="office" /><span>Entrada aceita</span><strong>PDF · DOCX · TXT</strong><small>extração server-side</small></div>
       </section>
 
+      <section className="resume-experience glass-panel" style={{ "--parallax-y": `${parallaxY}px` } as CSSProperties}>
+        <div className="resume-parallax-orb resume-orb-a" />
+        <div className="resume-parallax-orb resume-orb-b" />
+        <div className="resume-experience-head">
+          <div>
+            <span className="eyebrow"><Icon name="spark" /> Experiência de análise</span>
+            <h2>Currículos em movimento, decisão em foco.</h2>
+            <p>Inspirado no conceito visual do Newmix: camadas com parallax, cards em fluxo contínuo e uma leitura executiva abaixo para o recrutador entender o melhor candidato sem esforço.</p>
+          </div>
+          <a className="resume-jump" href="#analysis-form">Nova análise <span>→</span></a>
+        </div>
+
+        <div className="resume-marquee" aria-label="Carrossel infinito de currículos analisados">
+          <div className="resume-track">
+            {loopResumeItems.map((item, index) => {
+              const realId = item.source === "history" ? Number(item.id.replace("history-", "")) : null;
+              const isActive = featuredResume?.id === item.id;
+
+              return (
+                <button
+                  className={`resume-carousel-card ${isActive ? "active" : ""}`}
+                  key={`${item.id}-${index}`}
+                  type="button"
+                  onClick={() => {
+                    setSelectedCarouselId(item.id);
+                    if (realId) {
+                      const selected = history.find((historyItem) => historyItem.id === realId);
+                      if (selected) setResult(selected);
+                    }
+                  }}
+                >
+                  <span>{item.fit_score}</span>
+                  <strong>{item.candidate_name}</strong>
+                  <small>{item.source === "history" ? formatDate(item.created_at) : "exemplo visual"}</small>
+                  <i>{item.skills.slice(0, 3).join(" · ")}</i>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="resume-detail-grid">
+          <article className="resume-detail-main">
+            <p className="proto-kicker">Currículo selecionado</p>
+            <h3>{featuredResume?.candidate_name ?? "Aguardando análise"}</h3>
+            <p>{featuredResume?.summary ?? "Envie um currículo para gerar uma leitura detalhada com score, habilidades e recomendação."}</p>
+            <div className="resume-tags">
+              {(featuredResume?.skills ?? ["PDF", "DOCX", "TXT"]).slice(0, 6).map((skill) => <span key={skill}>{skill}</span>)}
+            </div>
+          </article>
+
+          <article className="resume-detail-score">
+            <span>Match IA</span>
+            <strong>{featuredResume?.fit_score ?? readiness}</strong>
+            <small>{featuredResume ? scoreLabel(featuredResume.fit_score) : "Pronto para analisar"}</small>
+          </article>
+
+          <article className="resume-detail-note">
+            <span>Leitura UX</span>
+            <p>O carrossel mantém o histórico vivo, enquanto o bloco inferior entrega contexto, score e habilidades sem o usuário precisar abrir várias telas.</p>
+          </article>
+        </div>
+      </section>
+
       {error && <div className="alert error">{error}</div>}
 
       <section className="workbench-grid">
-        <form className="analysis-panel glass-panel" onSubmit={onSubmit}>
+        <form className="analysis-panel glass-panel" id="analysis-form" onSubmit={onSubmit}>
           <div className="section-heading">
             <span><Icon name="upload" /></span>
             <div><h2>Nova análise</h2><p>Envie currículo e informe a vaga alvo.</p></div>
@@ -700,7 +863,7 @@ export default function Home() {
         <div className="history-list">
           {history.length ? history.map((item) => (
             <article className="history-item" key={item.id}>
-              <button className="history-main" type="button" onClick={() => setResult(item)}>
+              <button className="history-main" type="button" onClick={() => { setResult(item); setSelectedCarouselId(`history-${item.id}`); }}>
                 <strong>{item.candidate_name}</strong>
                 <span>{item.fit_score}/100 · {formatDate(item.created_at)}</span>
               </button>
