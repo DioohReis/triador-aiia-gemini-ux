@@ -1,5 +1,4 @@
 import json
-import os
 import re
 from typing import Any
 
@@ -7,6 +6,7 @@ from google import genai
 from google.genai import types
 from pydantic import ValidationError
 
+from app.core_config import settings
 from app.schemas.analysis import AnalysisLLMResult
 
 
@@ -20,17 +20,17 @@ class LLMUnavailableError(Exception):
 
 class LLMAnalysisService:
     def __init__(self) -> None:
-        self.provider = os.getenv("LLM_PROVIDER", "mock").lower()
+        self.provider = settings.llm_provider.lower()
 
         if self.provider == "gemini":
-            api_key = os.getenv("GEMINI_API_KEY")
+            api_key = settings.gemini_api_key
 
             if not api_key:
                 raise LLMUnavailableError("GEMINI_API_KEY não configurada no arquivo .env")
 
             try:
                 self.client = genai.Client(api_key=api_key)
-                self.model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+                self.model = settings.gemini_model
             except Exception as exc:
                 raise LLMUnavailableError("Falha ao inicializar o cliente Gemini") from exc
         else:
@@ -56,7 +56,7 @@ class LLMAnalysisService:
                 ),
             )
         except Exception as exc:
-            raise LLMUnavailableError("Falha ao chamar o provedor Gemini") from exc
+            raise LLMUnavailableError(f"Falha ao chamar o provedor Gemini: {exc}") from exc
 
         raw_text = response.text or ""
 
