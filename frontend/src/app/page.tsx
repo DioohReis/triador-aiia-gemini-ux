@@ -93,6 +93,169 @@ function SmokeLayer() {
   );
 }
 
+
+function ParticleHeroText() {
+  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return;
+
+    const canvasElement = canvas;
+    const context = ctx;
+
+    type Particle = {
+      x: number;
+      y: number;
+      baseX: number;
+      baseY: number;
+      size: number;
+      velocity: number;
+      density: number;
+      opacity: number;
+      drift: number;
+      angle: number;
+    };
+
+    let particles: Particle[] = [];
+    let frameId = 0;
+    const mouse = { x: -9999, y: -9999, radius: 150 };
+
+    function getFontSize() {
+      if (window.innerWidth < 520) return 58;
+      if (window.innerWidth < 900) return 76;
+      return 122;
+    }
+
+    function resizeCanvas() {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvasElement.getBoundingClientRect();
+      canvasElement.width = Math.floor(rect.width * dpr);
+      canvasElement.height = Math.floor(rect.height * dpr);
+      context.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildParticles(rect.width, rect.height);
+    }
+
+    function buildParticles(width: number, height: number) {
+      particles = [];
+      context.clearRect(0, 0, width, height);
+      const fontSize = getFontSize();
+      const lines = ["triador", "your", "career"];
+      const lineHeight = fontSize * 0.76;
+      const startY = height * 0.34;
+
+      context.fillStyle = "white";
+      context.textAlign = "center";
+      context.textBaseline = "middle";
+      context.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
+
+      lines.forEach((line, index) => {
+        context.fillText(line, width / 2, startY + (index - 1) * lineHeight);
+      });
+
+      const imageData = context.getImageData(0, 0, width, height);
+      context.clearRect(0, 0, width, height);
+
+      const gap = width < 640 ? 4 : 3;
+      for (let y = 0; y < height; y += gap) {
+        for (let x = 0; x < width; x += gap) {
+          const index = (y * width + x) * 4;
+          const alpha = imageData.data[index + 3];
+
+          if (alpha > 120) {
+            particles.push({
+              x: x + (Math.random() - 0.5) * 420,
+              y: y + (Math.random() - 0.5) * 420,
+              baseX: x,
+              baseY: y,
+              size: Math.random() * 1.55 + 0.55,
+              velocity: Math.random() * 0.16 + 0.045,
+              density: Math.random() * 52 + 14,
+              opacity: Math.random() * 0.55 + 0.24,
+              drift: Math.random() * 0.55 + 0.15,
+              angle: Math.random() * Math.PI * 2,
+            });
+          }
+        }
+      }
+    }
+
+    function animate() {
+      const rect = canvasElement.getBoundingClientRect();
+      context.clearRect(0, 0, rect.width, rect.height);
+
+      particles.forEach((particle) => {
+        particle.angle += 0.012;
+        particle.x += Math.cos(particle.angle) * particle.drift * 0.12;
+        particle.y += Math.sin(particle.angle) * particle.drift * 0.12;
+
+        const dx = mouse.x - particle.x;
+        const dy = mouse.y - particle.y;
+        const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+
+        if (distance < mouse.radius) {
+          const force = (mouse.radius - distance) / mouse.radius;
+          const directionX = dx / distance;
+          const directionY = dy / distance;
+          particle.x -= directionX * force * particle.density * 1.18;
+          particle.y -= directionY * force * particle.density * 1.18;
+        } else {
+          particle.x += (particle.baseX - particle.x) * particle.velocity;
+          particle.y += (particle.baseY - particle.y) * particle.velocity;
+        }
+
+        context.beginPath();
+        context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
+        context.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
+        context.fill();
+      });
+
+      frameId = requestAnimationFrame(animate);
+    }
+
+    function setMouse(clientX: number, clientY: number) {
+      const rect = canvasElement.getBoundingClientRect();
+      mouse.x = clientX - rect.left;
+      mouse.y = clientY - rect.top;
+    }
+
+    function onMouseMove(event: MouseEvent) {
+      setMouse(event.clientX, event.clientY);
+    }
+
+    function onTouchMove(event: TouchEvent) {
+      const touch = event.touches[0];
+      if (touch) setMouse(touch.clientX, touch.clientY);
+    }
+
+    function resetMouse() {
+      mouse.x = -9999;
+      mouse.y = -9999;
+    }
+
+    resizeCanvas();
+    animate();
+
+    window.addEventListener("resize", resizeCanvas);
+    canvasElement.addEventListener("mousemove", onMouseMove);
+    canvasElement.addEventListener("mouseleave", resetMouse);
+    canvasElement.addEventListener("touchmove", onTouchMove, { passive: true });
+
+    return () => {
+      cancelAnimationFrame(frameId);
+      window.removeEventListener("resize", resizeCanvas);
+      canvasElement.removeEventListener("mousemove", onMouseMove);
+      canvasElement.removeEventListener("mouseleave", resetMouse);
+      canvasElement.removeEventListener("touchmove", onTouchMove);
+    };
+  }, []);
+
+  return <canvas ref={canvasRef} className="particle-hero-canvas" aria-hidden="true" />;
+}
+
 function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: User) => void; theme: Theme; setTheme: (theme: Theme) => void }) {
   const [mode, setMode] = useState<AuthMode>("login");
   const [name, setName] = useState("");
@@ -119,7 +282,8 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
   return (
     <main className="auth-shell">
       <SmokeLayer />
-      <section className="auth-hero glass-panel">
+      <section className="auth-hero glass-panel interactive-hero">
+        <ParticleHeroText />
         <nav className="topbar">
           <div className="brand-mark"><span>ai</span><strong>Triador AIIA</strong></div>
           <button className="theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} type="button">
@@ -129,7 +293,7 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
         <div className="hero-grid">
           <div className="hero-copy">
             <span className="eyebrow"><Icon name="office" /> Candidate intelligence</span>
-            <h1>Triagem de currículos com uma experiência de produto real.</h1>
+            <h1>IA para transformar currículos em decisões claras.</h1>
             <p>
               Envie currículos, compare com a vaga e mantenha cada histórico protegido por usuário. Uma camada de IA para transformar seleção técnica em decisão clara.
             </p>
