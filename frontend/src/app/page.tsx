@@ -94,18 +94,18 @@ function SmokeLayer() {
 }
 
 
-function ParticleHeroText() {
+function ParticleTextCanvas() {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d", { willReadFrequently: true });
-    if (!ctx) return;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) return;
 
-    const canvasElement = canvas;
-    const context = ctx;
+    const canvasEl = canvas;
+    const ctx = context;
 
     type Particle = {
       x: number;
@@ -122,59 +122,67 @@ function ParticleHeroText() {
 
     let particles: Particle[] = [];
     let frameId = 0;
-    const mouse = { x: -9999, y: -9999, radius: 150 };
 
-    function getFontSize() {
-      if (window.innerWidth < 520) return 58;
-      if (window.innerWidth < 900) return 76;
-      return 122;
-    }
+    const mouse = {
+      x: -9999,
+      y: -9999,
+      radius: 145,
+    };
 
-    function resizeCanvas() {
+    const getFontSize = () => {
+      if (window.innerWidth < 520) return 66;
+      if (window.innerWidth < 900) return 92;
+      return 148;
+    };
+
+    function resize() {
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      const rect = canvasElement.getBoundingClientRect();
-      canvasElement.width = Math.floor(rect.width * dpr);
-      canvasElement.height = Math.floor(rect.height * dpr);
-      context.setTransform(dpr, 0, 0, dpr, 0, 0);
-      buildParticles(rect.width, rect.height);
+      canvasEl.width = window.innerWidth * dpr;
+      canvasEl.height = window.innerHeight * dpr;
+      canvasEl.style.width = `${window.innerWidth}px`;
+      canvasEl.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      buildParticles();
     }
 
-    function buildParticles(width: number, height: number) {
+    function buildParticles() {
       particles = [];
-      context.clearRect(0, 0, width, height);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
       const fontSize = getFontSize();
       const lines = ["triador", "your", "career"];
       const lineHeight = fontSize * 0.76;
-      const startY = height * 0.34;
+      const startY = h * 0.34 - lineHeight;
 
-      context.fillStyle = "white";
-      context.textAlign = "center";
-      context.textBaseline = "middle";
-      context.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
+      ctx.clearRect(0, 0, w, h);
+      ctx.fillStyle = "white";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
 
       lines.forEach((line, index) => {
-        context.fillText(line, width / 2, startY + (index - 1) * lineHeight);
+        ctx.fillText(line, w / 2, startY + index * lineHeight);
       });
 
-      const imageData = context.getImageData(0, 0, width, height);
-      context.clearRect(0, 0, width, height);
+      const imageData = ctx.getImageData(0, 0, w, h);
+      ctx.clearRect(0, 0, w, h);
 
-      const gap = width < 640 ? 4 : 3;
-      for (let y = 0; y < height; y += gap) {
-        for (let x = 0; x < width; x += gap) {
-          const index = (y * width + x) * 4;
+      const gap = w < 640 ? 4 : 3;
+      for (let y = 0; y < h; y += gap) {
+        for (let x = 0; x < w; x += gap) {
+          const index = (y * w + x) * 4;
           const alpha = imageData.data[index + 3];
 
           if (alpha > 120) {
             particles.push({
-              x: x + (Math.random() - 0.5) * 420,
-              y: y + (Math.random() - 0.5) * 420,
+              x: x + (Math.random() - 0.5) * 360,
+              y: y + (Math.random() - 0.5) * 360,
               baseX: x,
               baseY: y,
               size: Math.random() * 1.55 + 0.55,
               velocity: Math.random() * 0.16 + 0.045,
               density: Math.random() * 52 + 14,
-              opacity: Math.random() * 0.55 + 0.24,
+              opacity: Math.random() * 0.65 + 0.28,
               drift: Math.random() * 0.55 + 0.15,
               angle: Math.random() * Math.PI * 2,
             });
@@ -184,77 +192,96 @@ function ParticleHeroText() {
     }
 
     function animate() {
-      const rect = canvasElement.getBoundingClientRect();
-      context.clearRect(0, 0, rect.width, rect.height);
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      ctx.clearRect(0, 0, w, h);
 
-      particles.forEach((particle) => {
-        particle.angle += 0.012;
-        particle.x += Math.cos(particle.angle) * particle.drift * 0.12;
-        particle.y += Math.sin(particle.angle) * particle.drift * 0.12;
+      particles.forEach((p) => {
+        p.angle += 0.012;
+        p.x += Math.cos(p.angle) * p.drift * 0.12;
+        p.y += Math.sin(p.angle) * p.drift * 0.12;
 
-        const dx = mouse.x - particle.x;
-        const dy = mouse.y - particle.y;
+        const dx = mouse.x - p.x;
+        const dy = mouse.y - p.y;
         const distance = Math.sqrt(dx * dx + dy * dy) || 1;
 
         if (distance < mouse.radius) {
           const force = (mouse.radius - distance) / mouse.radius;
           const directionX = dx / distance;
           const directionY = dy / distance;
-          particle.x -= directionX * force * particle.density * 1.18;
-          particle.y -= directionY * force * particle.density * 1.18;
+
+          p.x -= directionX * force * p.density * 1.18;
+          p.y -= directionY * force * p.density * 1.18;
         } else {
-          particle.x += (particle.baseX - particle.x) * particle.velocity;
-          particle.y += (particle.baseY - particle.y) * particle.velocity;
+          p.x += (p.baseX - p.x) * p.velocity;
+          p.y += (p.baseY - p.y) * p.velocity;
         }
 
-        context.beginPath();
-        context.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        context.fillStyle = `rgba(255, 255, 255, ${particle.opacity})`;
-        context.fill();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
+        ctx.fill();
       });
 
       frameId = requestAnimationFrame(animate);
     }
 
-    function setMouse(clientX: number, clientY: number) {
-      const rect = canvasElement.getBoundingClientRect();
-      mouse.x = clientX - rect.left;
-      mouse.y = clientY - rect.top;
-    }
-
     function onMouseMove(event: MouseEvent) {
-      setMouse(event.clientX, event.clientY);
+      mouse.x = event.clientX;
+      mouse.y = event.clientY;
     }
 
-    function onTouchMove(event: TouchEvent) {
-      const touch = event.touches[0];
-      if (touch) setMouse(touch.clientX, touch.clientY);
-    }
-
-    function resetMouse() {
+    function onMouseLeave() {
       mouse.x = -9999;
       mouse.y = -9999;
     }
 
-    resizeCanvas();
+    function onTouchMove(event: TouchEvent) {
+      const touch = event.touches[0];
+      if (!touch) return;
+      mouse.x = touch.clientX;
+      mouse.y = touch.clientY;
+    }
+
+    resize();
     animate();
 
-    window.addEventListener("resize", resizeCanvas);
-    canvasElement.addEventListener("mousemove", onMouseMove);
-    canvasElement.addEventListener("mouseleave", resetMouse);
-    canvasElement.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("resize", resize);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseleave", onMouseLeave);
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
 
     return () => {
       cancelAnimationFrame(frameId);
-      window.removeEventListener("resize", resizeCanvas);
-      canvasElement.removeEventListener("mousemove", onMouseMove);
-      canvasElement.removeEventListener("mouseleave", resetMouse);
-      canvasElement.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("resize", resize);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseleave", onMouseLeave);
+      window.removeEventListener("touchmove", onTouchMove);
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="particle-hero-canvas" aria-hidden="true" />;
+  return <canvas ref={canvasRef} className="particle-text-canvas" aria-hidden="true" />;
 }
+
+const landingFeatures = [
+  {
+    icon: "file" as const,
+    title: "Currículos inteligentes",
+    description: "Crie análises diferentes para vagas, tecnologias e níveis profissionais.",
+  },
+  {
+    icon: "lock" as const,
+    title: "Dados separados por usuário",
+    description: "Cada conta visualiza apenas seus próprios currículos, feedbacks e histórico.",
+  },
+  {
+    icon: "spark" as const,
+    title: "Sugestões com IA",
+    description: "Apoio para melhorar aderência, stack, experiência e apresentação profissional.",
+  },
+];
+
+const landingSteps = ["Login seguro", "Upload do currículo", "Vaga alvo", "Análise IA", "Histórico privado"];
 
 function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: User) => void; theme: Theme; setTheme: (theme: Theme) => void }) {
   const [mode, setMode] = useState<AuthMode>("login");
@@ -263,6 +290,7 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [activeStep, setActiveStep] = useState(2);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -280,42 +308,49 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
   }
 
   return (
-    <main className="auth-shell">
-      <SmokeLayer />
-      <section className="auth-hero glass-panel interactive-hero">
-        <ParticleHeroText />
-        <nav className="topbar">
-          <div className="brand-mark"><span>ai</span><strong>Triador AIIA</strong></div>
-          <button className="theme-toggle" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} type="button">
+    <main className="auth-shell proto-shell">
+      <section className="proto-hero">
+        <ParticleTextCanvas />
+        <div className="proto-hero-overlay" />
+        <div className="proto-glow" />
+
+        <nav className="proto-nav">
+          <div className="proto-brand">
+            <div className="proto-brand-icon"><Icon name="briefcase" /></div>
+            <div>
+              <p>TRIADOR AIIA</p>
+              <span>AI Resume Platform</span>
+            </div>
+          </div>
+
+          <div className="proto-menu">
+            <a href="#features">Recursos</a>
+            <a href="#flow">Fluxo</a>
+            <a href="#preview">Dashboard</a>
+          </div>
+
+          <button className="proto-login-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} type="button">
             {theme === "dark" ? "Modo claro" : "Modo escuro"}
           </button>
         </nav>
-        <div className="hero-grid">
-          <div className="hero-copy">
-            <span className="eyebrow"><Icon name="office" /> Candidate intelligence</span>
-            <h1>IA para transformar currículos em decisões claras.</h1>
+
+        <div className="proto-hero-content">
+          <div className="proto-copy proto-rise">
+            <div className="proto-pill"><Icon name="spark" /> Plataforma profissional para triagem de currículos com IA</div>
+            <h1>Transforme experiência em oportunidade.</h1>
             <p>
-              Envie currículos, compare com a vaga e mantenha cada histórico protegido por usuário. Uma camada de IA para transformar seleção técnica em decisão clara.
+              Interface premium com partículas interativas, login individual, dados isolados por conta e dashboard focado na análise inteligente de currículos.
             </p>
-            <div className="hero-actions">
-              <a href="#auth-card" className="primary-link">Start</a>
-              <span className="microcopy"><Icon name="lock" /> dados isolados por conta</span>
-            </div>
-          </div>
-          <div className="office-card">
-            <div className="desk-scene">
-              <div className="desk-window" />
-              <div className="desk-lamp" />
-              <div className="desk-monitor"><span>AI fit score</span><strong>87%</strong></div>
-              <div className="desk-doc doc-one" />
-              <div className="desk-doc doc-two" />
-              <div className="desk-cup" />
+
+            <div className="proto-actions">
+              <a className="proto-primary" href="#auth-card">Começar agora <span>→</span></a>
+              <a className="proto-secondary" href="#preview">Ver protótipo</a>
             </div>
           </div>
         </div>
       </section>
 
-      <section className="auth-card glass-panel" id="auth-card">
+      <section className="proto-auth-card glass-panel" id="auth-card">
         <div className="auth-tabs" role="tablist">
           <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Entrar</button>
           <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Criar conta</button>
@@ -342,6 +377,83 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
           {error && <div className="alert error">{error}</div>}
           <button className="primary-button" disabled={loading} type="submit">{loading ? "Processando..." : mode === "login" ? "Entrar no Triador" : "Criar conta e começar"}</button>
         </form>
+      </section>
+
+      <section id="features" className="proto-features">
+        {landingFeatures.map((feature, index) => (
+          <article className="proto-feature-card proto-rise" style={{ animationDelay: `${index * 90}ms` }} key={feature.title}>
+            <div className="proto-card-icon"><Icon name={feature.icon} /></div>
+            <h2>{feature.title}</h2>
+            <p>{feature.description}</p>
+          </article>
+        ))}
+      </section>
+
+      <section id="flow" className="proto-flow glass-panel">
+        <div>
+          <p className="proto-kicker">UX Flow</p>
+          <h2>Uma jornada clara para o usuário não se perder.</h2>
+          <p>
+            O fluxo reduz fricção: o usuário entra, envia o currículo, cola a vaga, recebe sugestões e acompanha tudo em um painel limpo.
+          </p>
+        </div>
+
+        <div className="proto-step-list">
+          {landingSteps.map((step, index) => (
+            <button
+              key={step}
+              onClick={() => setActiveStep(index)}
+              className={activeStep === index ? "active" : ""}
+              type="button"
+            >
+              <span><strong>{index + 1}</strong>{step}</span>
+              <i>→</i>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <section id="preview" className="proto-preview">
+        <div className="proto-browser">
+          <div className="proto-browser-bar">
+            <div><span /><span /><span /></div>
+            <p>Dashboard Preview</p>
+          </div>
+
+          <div className="proto-dashboard-grid">
+            <aside className="proto-sidebar">
+              <div className="proto-profile">
+                <div><Icon name="office" /></div>
+                <span><strong>Diogo Reis</strong><small>Fullstack Developer</small></span>
+              </div>
+              {["Meus currículos", "Sugestões IA", "Vagas alvo", "Feedbacks"].map((item, index) => (
+                <div key={item} className={index === 0 ? "selected" : ""}>{item}</div>
+              ))}
+            </aside>
+
+            <div className="proto-dashboard-main">
+              <div className="proto-active-resume">
+                <div className="proto-card-head">
+                  <div>
+                    <p>Currículo ativo</p>
+                    <h3>Desenvolvedor Fullstack Java</h3>
+                  </div>
+                  <Icon name="lock" />
+                </div>
+                {["Spring Boot e APIs REST", "Frontend responsivo com React", "Oracle SQL, MySQL e PostgreSQL", "Conhecimento em LLM e tokens de IA"].map((item) => (
+                  <div className="proto-check-row" key={item}><span>{item}</span><small>ok</small></div>
+                ))}
+              </div>
+
+              <div className="proto-score-card">
+                <p>Score IA</p>
+                <strong>92</strong>
+                <span>Seu currículo está forte para vagas júnior e estágio em desenvolvimento backend/fullstack.</span>
+                <a href="#auth-card">Melhorar texto</a>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
     </main>
   );
