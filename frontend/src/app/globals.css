@@ -1902,3 +1902,259 @@ input:focus, textarea:focus { border-color: rgba(103,183,255,.55); box-shadow: 0
     animation-iteration-count: 1;
   }
 }
+
+/* =========================================================
+   MOBILE UX HOTFIX — scroll, centralização e responsividade
+   ========================================================= */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+  overscroll-behavior-y: auto;
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+.proto-shell,
+.app-shell {
+  overflow-x: hidden;
+  overflow-y: visible;
+}
+
+.proto-hero-stage-only {
+  min-height: 100svh;
+  min-height: 100dvh;
+  overflow: hidden;
+}
+
+.proto-particle-stage {
+  flex: 1 1 auto;
+  min-height: clamp(440px, 72svh, 820px);
+  min-height: clamp(440px, 72dvh, 820px);
+  height: auto;
+  align-items: center;
+  justify-items: center;
+  contain: layout paint;
+}
+
+.proto-particle-stage .particle-text-canvas {
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  touch-action: pan-y;
+}
+
+/* Área de login/informações sempre abaixo da fumaça, sem sobrepor no mobile */
+.proto-intro-auth-section {
+  scroll-margin-top: 96px;
+}
+
+@media (max-width: 980px) {
+  .proto-hero-stage-only {
+    min-height: 100svh;
+    min-height: 100dvh;
+  }
+
+  .proto-nav {
+    width: min(100% - 32px, 1280px);
+    padding: 18px 0 12px;
+  }
+
+  .proto-particle-stage {
+    width: 100%;
+    min-height: clamp(430px, 68svh, 720px);
+    min-height: clamp(430px, 68dvh, 720px);
+    border-radius: 0;
+  }
+
+  .proto-particle-stage::before {
+    inset: 10% 0 8%;
+    filter: blur(34px);
+  }
+
+  .proto-intro-auth-section {
+    padding-top: clamp(42px, 7vw, 64px);
+  }
+}
+
+@media (max-width: 620px) {
+  .proto-hero-stage-only {
+    min-height: auto;
+    overflow: visible;
+    background: #000;
+  }
+
+  .proto-nav {
+    width: min(100% - 24px, 1280px);
+    padding: 14px 0 8px;
+    gap: 12px;
+  }
+
+  .proto-brand {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .proto-brand p {
+    font-size: .74rem;
+    letter-spacing: .2em;
+    word-break: keep-all;
+  }
+
+  .proto-brand span {
+    font-size: .68rem;
+  }
+
+  .proto-login-button {
+    min-height: 42px;
+  }
+
+  .proto-particle-stage {
+    width: 100%;
+    min-height: clamp(390px, 64svh, 560px);
+    min-height: clamp(390px, 64dvh, 560px);
+    max-height: 620px;
+    margin: 0 auto;
+    overflow: hidden;
+  }
+
+  .proto-particle-stage .particle-text-canvas {
+    pointer-events: none;
+    touch-action: pan-y;
+  }
+
+  .proto-intro-auth-section {
+    width: min(100% - 24px, 1280px);
+    padding: 42px 0 28px;
+    margin-top: 0;
+  }
+
+  .proto-copy,
+  .proto-intro-copy {
+    max-width: 100%;
+  }
+
+  .proto-intro-copy h1 {
+    max-width: 11ch;
+    margin-left: auto;
+    margin-right: auto;
+    text-wrap: balance;
+  }
+
+  .proto-intro-copy p {
+    max-width: 34rem;
+    font-size: .98rem;
+    line-height: 1.72;
+  }
+
+  .auth-pro-card.proto-auth-card {
+    width: 100%;
+  }
+}
+
+@media (max-width: 380px) {
+  .proto-particle-stage {
+    min-height: clamp(360px, 62svh, 510px);
+    min-height: clamp(360px, 62dvh, 510px);
+  }
+
+  .proto-brand-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 15px;
+  }
+
+  .proto-intro-copy h1 {
+    font-size: clamp(2.35rem, 14vw, 3.8rem);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 540px) {
+  .proto-hero-stage-only {
+    min-height: auto;
+  }
+
+  .proto-particle-stage {
+    min-height: 360px;
+    max-height: none;
+  }
+}
+
+/* Dashboard mobile: nada deve travar o scroll vertical */
+@media (max-width: 760px) {
+  .app-shell {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .workspace-proto-nav {
+    position: sticky;
+    top: 0;
+    width: 100%;
+    padding: 12px 0;
+  }
+
+  .dashboard-hero,
+  .metrics-grid,
+  .resume-experience,
+  .workbench-grid,
+  .history-section {
+    width: 100% !important;
+  }
+
+  .dashboard-hero {
+    padding: 18px;
+    border-radius: 24px;
+  }
+
+  .dashboard-hero .hero-copy h1 {
+    font-size: clamp(2.4rem, 13vw, 4rem);
+    max-width: 12ch;
+  }
+
+  .resume-experience {
+    padding: 16px;
+  }
+
+  .resume-marquee {
+    touch-action: pan-y;
+  }
+
+  .resume-carousel-card,
+  .resume-document-button,
+  .resume-card-body {
+    touch-action: manipulation;
+  }
+
+  .workbench-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Formulários: melhor usabilidade real em telas pequenas */
+@media (max-width: 620px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  .auth-tabs {
+    gap: 6px;
+  }
+
+  .auth-tabs button,
+  .primary-button,
+  .proto-primary,
+  .proto-secondary {
+    min-height: 48px;
+  }
+
+  .checkbox-line {
+    align-items: flex-start;
+  }
+}
