@@ -11,6 +11,7 @@ const sampleJob = `Vaga: Desenvolvedor(a) Fullstack Júnior
 Requisitos: Python ou Go no backend, Next.js com TypeScript no frontend, banco relacional, integração com LLM via API, validação de saída estruturada, uso de SQL, Git, arquitetura em camadas e boa comunicação técnica.`;
 
 type StepStatus = "done" | "active" | "pending";
+type ThemeMode = "light" | "dark";
 
 function scoreLabel(score: number) {
   if (score >= 85) return "Match excelente";
@@ -115,6 +116,7 @@ export default function Home() {
   const [error, setError] = useState("");
   const [fileInfo, setFileInfo] = useState("");
   const [activeHistoryId, setActiveHistoryId] = useState<number | null>(null);
+  const [theme, setTheme] = useState<ThemeMode>("light");
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const resumeReady = resumeText.trim().length >= 30;
@@ -160,6 +162,21 @@ export default function Home() {
   useEffect(() => {
     boot();
   }, []);
+
+  useEffect(() => {
+    const savedTheme = window.localStorage.getItem("triador-theme") as ThemeMode | null;
+    const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+    setTheme(savedTheme ?? (prefersDark ? "dark" : "light"));
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    window.localStorage.setItem("triador-theme", theme);
+  }, [theme]);
+
+  function toggleTheme() {
+    setTheme((current) => (current === "dark" ? "light" : "dark"));
+  }
 
   async function handleFile(file?: File) {
     if (!file) return;
@@ -267,9 +284,23 @@ export default function Home() {
     <main className="app-shell">
       <section className="hero-grid">
         <div className="hero-card hero-copy">
-          <div className="brand-row">
-            <span className="brand-mark">ai</span>
-            <span>Triador AIIA · Candidate Intelligence</span>
+          <div className="hero-topbar">
+            <div className="brand-row">
+              <span className="brand-mark">ai</span>
+              <span>Triador AIIA · Candidate Intelligence</span>
+            </div>
+
+            <button
+              className="theme-toggle"
+              type="button"
+              onClick={toggleTheme}
+              aria-pressed={theme === "dark"}
+              aria-label={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+              title={theme === "dark" ? "Ativar modo claro" : "Ativar modo escuro"}
+            >
+              <span className="theme-toggle-icon" aria-hidden="true">{theme === "dark" ? "☀" : "☾"}</span>
+              <span>{theme === "dark" ? "Modo claro" : "Modo escuro"}</span>
+            </button>
           </div>
           <h1>Uma central inteligente para transformar currículos em decisões de triagem.</h1>
           <p>

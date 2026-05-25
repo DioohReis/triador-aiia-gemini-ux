@@ -59,5 +59,7 @@ class ExtractedDocumentResponse(BaseModel):
 
 class HealthResponse(BaseModel):
     status: str
-    provider: str
+    app: str
+    environment: str
+    llm_provider: str
     database: str
