@@ -1426,3 +1426,479 @@ input:focus, textarea:focus { border-color: rgba(103,183,255,.55); box-shadow: 0
   .resume-carousel-card { width: 270px; min-height: 330px; }
   .resume-document-preview { height: 190px; border-radius: 20px; }
 }
+
+/* Ajustes finais: fumaça centralizada e fluxo de autenticação profissional */
+.proto-hero-stage-only {
+  min-height: 100svh;
+  display: flex;
+  flex-direction: column;
+  background: #000;
+}
+.proto-particle-stage {
+  position: relative;
+  z-index: 4;
+  flex: 1;
+  width: min(1280px, calc(100% - 48px));
+  min-height: clamp(430px, 74svh, 820px);
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 0 0 42px 42px;
+}
+.proto-particle-stage::before {
+  content: "";
+  position: absolute;
+  inset: 8% 8% 2%;
+  border-radius: 999px;
+  background: radial-gradient(circle at 50% 48%, rgba(255,255,255,.12), transparent 58%);
+  filter: blur(38px);
+  pointer-events: none;
+}
+.proto-particle-stage .particle-text-canvas {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: auto;
+  touch-action: none;
+}
+.proto-intro-auth-section {
+  position: relative;
+  z-index: 12;
+  width: min(1280px, calc(100% - 48px));
+  margin: 0 auto;
+  padding: 78px 0 42px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 520px);
+  gap: 38px;
+  align-items: start;
+}
+.proto-intro-auth-section::before {
+  content: "";
+  position: absolute;
+  inset: 0 0 auto;
+  height: 1px;
+  background: linear-gradient(to right, transparent, rgba(255,255,255,.22), transparent);
+}
+.proto-intro-copy {
+  text-align: left;
+  padding-top: 12px;
+}
+.proto-intro-copy .proto-pill {
+  margin-left: 0;
+  margin-right: 0;
+}
+.proto-intro-copy h1 {
+  font-size: clamp(3rem, 6vw, 6.2rem);
+}
+.proto-intro-copy p {
+  margin-left: 0;
+  margin-right: 0;
+}
+.proto-intro-copy .proto-actions {
+  justify-content: flex-start;
+}
+.auth-pro-card.proto-auth-card {
+  width: 100%;
+  margin: 0;
+  border-color: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.055);
+  box-shadow: 0 30px 90px rgba(0,0,0,.36);
+}
+.professional-auth-form label {
+  gap: 8px;
+}
+.password-field {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+.password-field input {
+  min-width: 0;
+}
+.password-field button {
+  min-height: 48px;
+  padding: 0 14px;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 16px;
+  background: rgba(255,255,255,.08);
+  color: rgba(255,255,255,.82);
+  font-size: .82rem;
+  font-weight: 900;
+}
+.password-strength {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: center;
+  margin: -2px 0 2px;
+}
+.password-strength span {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255,255,255,.10);
+}
+.password-strength i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #fff;
+  box-shadow: 0 0 24px rgba(255,255,255,.22);
+  transition: width .24s ease;
+}
+.password-strength strong,
+.field-feedback {
+  color: rgba(255,255,255,.58);
+  font-size: .78rem;
+  font-weight: 900;
+}
+.field-feedback {
+  display: block;
+  margin-top: -2px;
+  color: rgba(255,255,255,.66);
+}
+.auth-checklist {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.auth-checklist span {
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 999px;
+  padding: 7px 10px;
+  color: rgba(255,255,255,.42);
+  background: rgba(255,255,255,.045);
+  font-size: .76rem;
+  font-weight: 900;
+}
+.auth-checklist span.ok {
+  color: #000;
+  background: #fff;
+  border-color: #fff;
+}
+.auth-options-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 4px 0;
+}
+.checkbox-line {
+  display: flex !important;
+  grid-template-columns: none !important;
+  align-items: flex-start;
+  gap: 10px !important;
+  color: rgba(255,255,255,.62) !important;
+  font-size: .82rem !important;
+  line-height: 1.45;
+  cursor: pointer;
+}
+.checkbox-line input {
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  accent-color: #fff;
+  flex: 0 0 auto;
+}
+.auth-terms {
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,.10);
+  border-radius: 18px;
+  background: rgba(255,255,255,.045);
+}
+.professional-auth-form .primary-button {
+  width: 100%;
+  background: #fff;
+  color: #000;
+  box-shadow: 0 0 46px rgba(255,255,255,.15);
+}
+.professional-auth-form .primary-button:disabled {
+  opacity: .42;
+}
+
+@media (max-width: 980px) {
+  .proto-particle-stage {
+    width: min(100% - 32px, 1280px);
+    min-height: clamp(460px, 72svh, 760px);
+  }
+  .proto-intro-auth-section {
+    width: min(100% - 32px, 1280px);
+    grid-template-columns: 1fr;
+    padding-top: 56px;
+  }
+  .proto-intro-copy {
+    text-align: center;
+  }
+  .proto-intro-copy .proto-pill {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .proto-intro-copy p {
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .proto-intro-copy .proto-actions {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 620px) {
+  .proto-hero-stage-only {
+    min-height: 100svh;
+  }
+  .proto-particle-stage {
+    width: 100%;
+    min-height: calc(100svh - 164px);
+    border-radius: 0;
+  }
+  .proto-particle-stage::before {
+    inset: 12% 0 8%;
+  }
+  .proto-intro-auth-section {
+    width: min(100% - 28px, 1280px);
+    padding: 52px 0 28px;
+    gap: 28px;
+  }
+  .proto-intro-copy h1 {
+    font-size: clamp(2.7rem, 15vw, 4.8rem);
+  }
+  .auth-pro-card.proto-auth-card {
+    padding: 18px;
+  }
+  .password-field {
+    grid-template-columns: 1fr;
+  }
+  .password-field button {
+    width: 100%;
+  }
+}
+
+/* Ajuste solicitado: carrossel mais fluido, previews maiores e abertura pelo clique na foto */
+.resume-marquee {
+  padding: 18px 0 34px;
+  overflow: hidden;
+  -webkit-mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+  mask-image: linear-gradient(to right, transparent, #000 5%, #000 95%, transparent);
+}
+
+.resume-track {
+  gap: clamp(18px, 2vw, 28px);
+  animation: resumeMarquee 58s linear infinite;
+  transform: translate3d(0, 0, 0);
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+@keyframes resumeMarquee {
+  from { transform: translate3d(0, 0, 0); }
+  to { transform: translate3d(-33.333%, 0, 0); }
+}
+
+.resume-carousel-card {
+  width: clamp(340px, 34vw, 500px);
+  min-height: clamp(500px, 48vw, 620px);
+  padding: clamp(14px, 1.4vw, 18px);
+  border-radius: clamp(28px, 2.6vw, 40px);
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 16px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 18% 0%, rgba(255,255,255,.16), transparent 36%),
+    linear-gradient(145deg, rgba(255,255,255,.075), rgba(255,255,255,.025));
+  box-shadow: 0 34px 90px rgba(0,0,0,.34);
+  cursor: default;
+}
+
+.resume-carousel-card:hover,
+.resume-carousel-card.active {
+  transform: translateY(-10px) scale(1.018);
+}
+
+.resume-document-button {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  border-radius: clamp(24px, 2vw, 32px);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.resume-document-preview {
+  height: clamp(345px, 33vw, 470px);
+  border-radius: clamp(24px, 2vw, 32px);
+  transition: transform .35s cubic-bezier(.2,.8,.2,1), box-shadow .35s cubic-bezier(.2,.8,.2,1), border-color .35s ease;
+}
+
+.resume-document-button:hover .resume-document-preview {
+  transform: scale(1.018);
+  border-color: rgba(255,255,255,.28);
+  box-shadow: 0 24px 80px rgba(255,255,255,.12), inset 0 0 0 1px rgba(0,0,0,.035);
+}
+
+.resume-pdf-frame {
+  pointer-events: none;
+  transform: scale(1.01);
+  transform-origin: top center;
+}
+
+.resume-open-overlay {
+  position: absolute;
+  inset: auto 14px 14px 14px;
+  display: flex;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(10px);
+  transition: opacity .25s ease, transform .25s ease;
+  pointer-events: none;
+}
+
+.resume-open-overlay span {
+  width: auto;
+  height: auto;
+  min-height: 38px;
+  padding: 0 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(255,255,255,.16);
+  border-radius: 999px;
+  background: rgba(5,5,5,.82);
+  color: #fff;
+  font-size: .78rem;
+  font-weight: 950;
+  letter-spacing: .02em;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 12px 40px rgba(0,0,0,.35);
+}
+
+.resume-document-button:hover .resume-open-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.resume-document-cover {
+  padding: clamp(22px, 2vw, 30px);
+  display: flex;
+  flex-direction: column;
+}
+
+.resume-document-cover strong {
+  font-size: clamp(1.9rem, 2.4vw, 3.05rem);
+  max-width: 92%;
+}
+
+.resume-document-cover small {
+  font-size: .86rem;
+  margin-top: 10px;
+}
+
+.resume-document-lines {
+  margin-top: auto;
+  gap: 11px;
+  padding-top: 30px;
+}
+
+.resume-document-lines b {
+  height: 10px;
+}
+
+.resume-card-body {
+  width: 100%;
+  min-height: 96px;
+  padding: 12px 12px 14px;
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 24px;
+  background: rgba(0,0,0,.20);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: background .25s ease, border-color .25s ease;
+}
+
+.resume-card-body:hover {
+  background: rgba(255,255,255,.08);
+  border-color: rgba(255,255,255,.18);
+}
+
+.resume-card-body strong {
+  font-size: clamp(1.2rem, 1.6vw, 1.55rem);
+}
+
+.resume-card-body i {
+  font-size: .9rem;
+}
+
+@media (max-width: 980px) {
+  .resume-track {
+    animation-duration: 48s;
+    gap: 18px;
+  }
+
+  .resume-carousel-card {
+    width: clamp(320px, 54vw, 430px);
+    min-height: 500px;
+  }
+
+  .resume-document-preview {
+    height: 354px;
+  }
+}
+
+@media (max-width: 620px) {
+  .resume-marquee {
+    margin-left: -18px;
+    width: calc(100% + 36px);
+    padding-top: 14px;
+  }
+
+  .resume-track {
+    gap: 14px;
+    animation-duration: 42s;
+  }
+
+  .resume-carousel-card {
+    width: min(86vw, 350px);
+    min-height: 470px;
+    padding: 12px;
+    border-radius: 28px;
+  }
+
+  .resume-document-preview {
+    height: 320px;
+    border-radius: 22px;
+  }
+
+  .resume-document-cover {
+    padding: 20px;
+  }
+
+  .resume-card-body {
+    min-height: 104px;
+    grid-template-columns: 54px minmax(0, 1fr);
+  }
+
+  .resume-card-body span {
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    font-size: 1.25rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .resume-track {
+    animation-duration: 0.001ms;
+    animation-iteration-count: 1;
+  }
+}

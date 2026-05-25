@@ -40,7 +40,28 @@ type ResumeCarouselItem = {
 };
 
 const STORAGE_TOKEN = "triador_access_token";
+const STORAGE_SESSION_TOKEN = "triador_session_token";
 const STORAGE_THEME = "triador_theme";
+
+function storeAuthToken(token: string, remember: boolean) {
+  if (remember) {
+    localStorage.setItem(STORAGE_TOKEN, token);
+    sessionStorage.removeItem(STORAGE_SESSION_TOKEN);
+    return;
+  }
+
+  sessionStorage.setItem(STORAGE_SESSION_TOKEN, token);
+  localStorage.removeItem(STORAGE_TOKEN);
+}
+
+function readStoredToken() {
+  return localStorage.getItem(STORAGE_TOKEN) ?? sessionStorage.getItem(STORAGE_SESSION_TOKEN);
+}
+
+function clearStoredToken() {
+  localStorage.removeItem(STORAGE_TOKEN);
+  sessionStorage.removeItem(STORAGE_SESSION_TOKEN);
+}
 
 const suggestionSlots = [
   "Cole aqui uma vaga de Desenvolvedor Fullstack Júnior com requisitos técnicos claros.",
@@ -143,37 +164,59 @@ function ParticleTextCanvas() {
 
     let particles: Particle[] = [];
     let frameId = 0;
+    let stageWidth = 0;
+    let stageHeight = 0;
 
     const mouse = {
       x: -9999,
       y: -9999,
-      radius: 145,
+      radius: 150,
     };
 
-    const getFontSize = () => {
-      if (window.innerWidth < 520) return 66;
-      if (window.innerWidth < 900) return 92;
-      return 148;
+    const getBaseFontSize = () => {
+      if (stageWidth < 420) return 54;
+      if (stageWidth < 640) return 66;
+      if (stageWidth < 980) return 94;
+      return 154;
     };
+
+    function getFittedFontSize(lines: string[]) {
+      let fontSize = getBaseFontSize();
+      const maxWidth = stageWidth * (stageWidth < 620 ? 0.88 : 0.76);
+
+      while (fontSize > 38) {
+        ctx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
+        const widest = Math.max(...lines.map((line) => ctx.measureText(line).width));
+        if (widest <= maxWidth) break;
+        fontSize -= 2;
+      }
+
+      return fontSize;
+    }
 
     function resize() {
+      const rect = canvasEl.parentElement?.getBoundingClientRect();
+      stageWidth = Math.max(320, Math.floor(rect?.width || window.innerWidth));
+      stageHeight = Math.max(360, Math.floor(rect?.height || window.innerHeight));
+
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvasEl.width = window.innerWidth * dpr;
-      canvasEl.height = window.innerHeight * dpr;
-      canvasEl.style.width = `${window.innerWidth}px`;
-      canvasEl.style.height = `${window.innerHeight}px`;
+      canvasEl.width = stageWidth * dpr;
+      canvasEl.height = stageHeight * dpr;
+      canvasEl.style.width = `${stageWidth}px`;
+      canvasEl.style.height = `${stageHeight}px`;
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       buildParticles();
     }
 
     function buildParticles() {
       particles = [];
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-      const fontSize = getFontSize();
+      const w = stageWidth;
+      const h = stageHeight;
       const lines = ["triador", "your", "career"];
+      const fontSize = getFittedFontSize(lines);
       const lineHeight = fontSize * 0.76;
-      const startY = h * 0.34 - lineHeight;
+      const centerY = h * (w < 620 ? 0.51 : 0.5);
+      const startY = centerY - lineHeight;
 
       ctx.clearRect(0, 0, w, h);
       ctx.fillStyle = "white";
@@ -188,23 +231,23 @@ function ParticleTextCanvas() {
       const imageData = ctx.getImageData(0, 0, w, h);
       ctx.clearRect(0, 0, w, h);
 
-      const gap = w < 640 ? 4 : 3;
+      const gap = w < 520 ? 4 : w < 860 ? 3.5 : 3;
       for (let y = 0; y < h; y += gap) {
         for (let x = 0; x < w; x += gap) {
-          const index = (y * w + x) * 4;
+          const index = (Math.floor(y) * w + Math.floor(x)) * 4;
           const alpha = imageData.data[index + 3];
 
-          if (alpha > 120) {
+          if (alpha > 116) {
             particles.push({
               x: x + (Math.random() - 0.5) * 360,
               y: y + (Math.random() - 0.5) * 360,
               baseX: x,
               baseY: y,
-              size: Math.random() * 1.55 + 0.55,
-              velocity: Math.random() * 0.16 + 0.045,
-              density: Math.random() * 52 + 14,
-              opacity: Math.random() * 0.65 + 0.28,
-              drift: Math.random() * 0.55 + 0.15,
+              size: Math.random() * 1.7 + 0.62,
+              velocity: Math.random() * 0.15 + 0.045,
+              density: Math.random() * 56 + 16,
+              opacity: Math.random() * 0.72 + 0.32,
+              drift: Math.random() * 0.62 + 0.16,
               angle: Math.random() * Math.PI * 2,
             });
           }
@@ -213,8 +256,8 @@ function ParticleTextCanvas() {
     }
 
     function animate() {
-      const w = window.innerWidth;
-      const h = window.innerHeight;
+      const w = stageWidth;
+      const h = stageHeight;
       ctx.clearRect(0, 0, w, h);
 
       particles.forEach((p) => {
@@ -231,8 +274,8 @@ function ParticleTextCanvas() {
           const directionX = dx / distance;
           const directionY = dy / distance;
 
-          p.x -= directionX * force * p.density * 1.18;
-          p.y -= directionY * force * p.density * 1.18;
+          p.x -= directionX * force * p.density * 1.2;
+          p.y -= directionY * force * p.density * 1.2;
         } else {
           p.x += (p.baseX - p.x) * p.velocity;
           p.y += (p.baseY - p.y) * p.velocity;
@@ -247,9 +290,14 @@ function ParticleTextCanvas() {
       frameId = requestAnimationFrame(animate);
     }
 
+    function getLocalPointer(clientX: number, clientY: number) {
+      const rect = canvasEl.getBoundingClientRect();
+      mouse.x = clientX - rect.left;
+      mouse.y = clientY - rect.top;
+    }
+
     function onMouseMove(event: MouseEvent) {
-      mouse.x = event.clientX;
-      mouse.y = event.clientY;
+      getLocalPointer(event.clientX, event.clientY);
     }
 
     function onMouseLeave() {
@@ -260,24 +308,26 @@ function ParticleTextCanvas() {
     function onTouchMove(event: TouchEvent) {
       const touch = event.touches[0];
       if (!touch) return;
-      mouse.x = touch.clientX;
-      mouse.y = touch.clientY;
+      getLocalPointer(touch.clientX, touch.clientY);
     }
 
+    const observer = new ResizeObserver(resize);
+    if (canvasEl.parentElement) observer.observe(canvasEl.parentElement);
     resize();
     animate();
 
     window.addEventListener("resize", resize);
-    window.addEventListener("mousemove", onMouseMove);
-    window.addEventListener("mouseleave", onMouseLeave);
-    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    canvasEl.addEventListener("mousemove", onMouseMove);
+    canvasEl.addEventListener("mouseleave", onMouseLeave);
+    canvasEl.addEventListener("touchmove", onTouchMove, { passive: true });
 
     return () => {
       cancelAnimationFrame(frameId);
+      observer.disconnect();
       window.removeEventListener("resize", resize);
-      window.removeEventListener("mousemove", onMouseMove);
-      window.removeEventListener("mouseleave", onMouseLeave);
-      window.removeEventListener("touchmove", onTouchMove);
+      canvasEl.removeEventListener("mousemove", onMouseMove);
+      canvasEl.removeEventListener("mouseleave", onMouseLeave);
+      canvasEl.removeEventListener("touchmove", onTouchMove);
     };
   }, []);
 
@@ -423,9 +473,12 @@ function ResumeDocumentPreview({ item }: { item: ResumeCarouselItem }) {
           <div className="resume-document-topline"><span>{extension}</span><i>{item.fit_score}</i></div>
           <strong>{item.candidate_name}</strong>
           <small>{file.fileName}</small>
-          <div className="resume-document-lines"><b /><b /><b /><b /></div>
+          <div className="resume-document-lines"><b /><b /><b /><b /><b /><b /></div>
         </div>
       )}
+      <div className="resume-open-overlay">
+        <span>Abrir currículo</span>
+      </div>
     </div>
   );
 }
@@ -435,17 +488,73 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [rememberSession, setRememberSession] = useState(true);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeStep, setActiveStep] = useState(2);
 
+  const normalizedEmail = email.trim().toLowerCase();
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail);
+  const passwordChecks = [
+    password.length >= 8,
+    /[A-ZÀ-Ý]/.test(password),
+    /[a-zà-ÿ]/.test(password),
+    /\d/.test(password),
+    /[^A-Za-zÀ-ÿ0-9]/.test(password),
+  ];
+  const passwordScore = passwordChecks.filter(Boolean).length;
+  const passwordStrongEnough = passwordScore >= 3;
+  const passwordsMatch = mode === "login" || password === confirmPassword;
+  const canAuthenticate = mode === "login"
+    ? emailValid && password.length >= 1
+    : name.trim().length >= 2 && emailValid && passwordStrongEnough && passwordsMatch && acceptedTerms;
+
+  function getPasswordStrengthLabel() {
+    if (!password) return "Aguardando senha";
+    if (passwordScore <= 2) return "Senha fraca";
+    if (passwordScore === 3) return "Senha aceitável";
+    if (passwordScore === 4) return "Senha forte";
+    return "Senha excelente";
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+
+    if (!emailValid) {
+      setError("Informe um e-mail válido para continuar.");
+      return;
+    }
+
+    if (mode === "register") {
+      if (name.trim().length < 2) {
+        setError("Informe seu nome com pelo menos 2 caracteres.");
+        return;
+      }
+      if (!passwordStrongEnough) {
+        setError("Use uma senha com pelo menos 8 caracteres e uma combinação de letras, números ou símbolos.");
+        return;
+      }
+      if (!passwordsMatch) {
+        setError("A confirmação de senha não confere.");
+        return;
+      }
+      if (!acceptedTerms) {
+        setError("Confirme que aceita o uso privado dos dados para análise dos currículos.");
+        return;
+      }
+    }
+
     setLoading(true);
     try {
-      const response = mode === "register" ? await registerUser(name, email, password) : await loginUser(email, password);
-      localStorage.setItem(STORAGE_TOKEN, response.access_token);
+      const response = mode === "register"
+        ? await registerUser(name.trim(), normalizedEmail, password)
+        : await loginUser(normalizedEmail, password);
+
+      storeAuthToken(response.access_token, rememberSession);
       onAuth(response.access_token, response.user);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível autenticar.");
@@ -456,8 +565,7 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
 
   return (
     <main className="auth-shell proto-shell">
-      <section className="proto-hero">
-        <ParticleTextCanvas />
+      <section className="proto-hero proto-hero-stage-only">
         <div className="proto-hero-overlay" />
         <div className="proto-glow" />
 
@@ -481,49 +589,136 @@ function AuthPanel({ onAuth, theme, setTheme }: { onAuth: (token: string, user: 
           </button>
         </nav>
 
-        <div className="proto-hero-content">
-          <div className="proto-copy proto-rise">
-            <div className="proto-pill"><Icon name="spark" /> Plataforma profissional para triagem de currículos com IA</div>
-            <h1>Transforme experiência em oportunidade.</h1>
-            <p>
-              Interface premium com partículas interativas, login individual, dados isolados por conta e dashboard focado na análise inteligente de currículos.
-            </p>
-
-            <div className="proto-actions">
-              <a className="proto-primary" href="#auth-card">Começar agora <span>→</span></a>
-              <a className="proto-secondary" href="#preview">Ver protótipo</a>
-            </div>
-          </div>
+        <div className="proto-particle-stage" aria-label="Identidade visual Triador">
+          <ParticleTextCanvas />
         </div>
       </section>
 
-      <section className="proto-auth-card glass-panel" id="auth-card">
-        <div className="auth-tabs" role="tablist">
-          <button type="button" className={mode === "login" ? "active" : ""} onClick={() => setMode("login")}>Entrar</button>
-          <button type="button" className={mode === "register" ? "active" : ""} onClick={() => setMode("register")}>Criar conta</button>
-        </div>
-        <div className="auth-title">
-          <Icon name="lock" />
-          <div>
-            <h2>{mode === "login" ? "Acesse seu workspace" : "Crie seu workspace"}</h2>
-            <p>Cada usuário visualiza apenas os próprios currículos e análises.</p>
+      <section className="proto-intro-auth-section" id="auth-card">
+        <div className="proto-copy proto-rise proto-intro-copy">
+          <div className="proto-pill"><Icon name="spark" /> Plataforma profissional para triagem de currículos com IA</div>
+          <h1>Transforme experiência em oportunidade.</h1>
+          <p>
+            Login seguro, dados isolados por usuário e uma experiência premium para analisar currículos com clareza, contexto e inteligência artificial.
+          </p>
+
+          <div className="proto-actions">
+            <a className="proto-primary" href="#auth-form">Começar agora <span>→</span></a>
+            <a className="proto-secondary" href="#preview">Ver protótipo</a>
           </div>
         </div>
-        <form onSubmit={submit} className="auth-form">
-          {mode === "register" && (
-            <label>Nome
-              <input value={name} onChange={(event) => setName(event.target.value)} placeholder="Seu nome" minLength={2} required />
+
+        <div className="proto-auth-card glass-panel auth-pro-card" id="auth-form">
+          <div className="auth-tabs" role="tablist" aria-label="Alternar entre login e cadastro">
+            <button type="button" className={mode === "login" ? "active" : ""} onClick={() => { setMode("login"); setError(""); }}>Entrar</button>
+            <button type="button" className={mode === "register" ? "active" : ""} onClick={() => { setMode("register"); setError(""); }}>Criar conta</button>
+          </div>
+
+          <div className="auth-title">
+            <Icon name="lock" />
+            <div>
+              <h2>{mode === "login" ? "Acesse seu workspace" : "Crie seu workspace privado"}</h2>
+              <p>{mode === "login" ? "Entre com sua conta para acessar seus currículos." : "Cadastro com validação, senha forte e sessão protegida."}</p>
+            </div>
+          </div>
+
+          <form onSubmit={submit} className="auth-form professional-auth-form" noValidate>
+            {mode === "register" && (
+              <label>Nome completo
+                <input
+                  value={name}
+                  onChange={(event) => setName(event.target.value)}
+                  placeholder="Seu nome"
+                  minLength={2}
+                  maxLength={120}
+                  autoComplete="name"
+                  required
+                />
+              </label>
+            )}
+
+            <label>E-mail
+              <input
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+                placeholder="voce@email.com"
+                type="email"
+                inputMode="email"
+                autoCapitalize="none"
+                autoComplete="email"
+                aria-invalid={email.length > 0 && !emailValid}
+                required
+              />
+              {email.length > 0 && !emailValid && <small className="field-feedback">Digite um e-mail válido.</small>}
             </label>
-          )}
-          <label>E-mail
-            <input value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@email.com" type="email" required />
-          </label>
-          <label>Senha
-            <input value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo 6 caracteres" type="password" minLength={6} required />
-          </label>
-          {error && <div className="alert error">{error}</div>}
-          <button className="primary-button" disabled={loading} type="submit">{loading ? "Processando..." : mode === "login" ? "Entrar no Triador" : "Criar conta e começar"}</button>
-        </form>
+
+            <label>Senha
+              <div className="password-field">
+                <input
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  placeholder={mode === "login" ? "Sua senha" : "Mínimo 8 caracteres"}
+                  type={showPassword ? "text" : "password"}
+                  minLength={mode === "register" ? 8 : 1}
+                  maxLength={128}
+                  autoComplete={mode === "login" ? "current-password" : "new-password"}
+                  required
+                />
+                <button type="button" onClick={() => setShowPassword((current) => !current)}>
+                  {showPassword ? "Ocultar" : "Mostrar"}
+                </button>
+              </div>
+            </label>
+
+            {mode === "register" && (
+              <>
+                <div className="password-strength" aria-live="polite">
+                  <span><i style={{ width: `${Math.max(16, passwordScore * 20)}%` }} /></span>
+                  <strong>{getPasswordStrengthLabel()}</strong>
+                </div>
+                <div className="auth-checklist">
+                  <span className={passwordChecks[0] ? "ok" : ""}>8+ caracteres</span>
+                  <span className={passwordChecks[1] && passwordChecks[2] ? "ok" : ""}>maiúscula e minúscula</span>
+                  <span className={passwordChecks[3] || passwordChecks[4] ? "ok" : ""}>número ou símbolo</span>
+                </div>
+
+                <label>Confirmar senha
+                  <input
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Repita sua senha"
+                    type={showPassword ? "text" : "password"}
+                    minLength={8}
+                    maxLength={128}
+                    autoComplete="new-password"
+                    aria-invalid={confirmPassword.length > 0 && !passwordsMatch}
+                    required
+                  />
+                  {confirmPassword.length > 0 && !passwordsMatch && <small className="field-feedback">As senhas precisam ser iguais.</small>}
+                </label>
+              </>
+            )}
+
+            <div className="auth-options-row">
+              <label className="checkbox-line">
+                <input type="checkbox" checked={rememberSession} onChange={(event) => setRememberSession(event.target.checked)} />
+                <span>Manter conectado neste dispositivo</span>
+              </label>
+            </div>
+
+            {mode === "register" && (
+              <label className="checkbox-line auth-terms">
+                <input type="checkbox" checked={acceptedTerms} onChange={(event) => setAcceptedTerms(event.target.checked)} />
+                <span>Confirmo que os currículos serão usados apenas para gerar minhas análises privadas no Triador.</span>
+              </label>
+            )}
+
+            {error && <div className="alert error" role="alert">{error}</div>}
+            <button className="primary-button" disabled={loading || !canAuthenticate} type="submit">
+              {loading ? "Processando..." : mode === "login" ? "Entrar no Triador" : "Criar conta segura"}
+            </button>
+          </form>
+        </div>
       </section>
 
       <section id="features" className="proto-features">
@@ -679,7 +874,7 @@ export default function Home() {
     const preferred = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
     setTheme(storedTheme ?? preferred);
 
-    const storedToken = localStorage.getItem(STORAGE_TOKEN);
+    const storedToken = readStoredToken();
     if (!storedToken) return;
 
     setToken(storedToken);
@@ -689,7 +884,7 @@ export default function Home() {
         return loadPrivateData(storedToken);
       })
       .catch(() => {
-        localStorage.removeItem(STORAGE_TOKEN);
+        clearStoredToken();
         setToken(null);
         setUser(null);
       });
@@ -703,7 +898,7 @@ export default function Home() {
   }
 
   function logout() {
-    localStorage.removeItem(STORAGE_TOKEN);
+    clearStoredToken();
     setToken(null);
     setUser(null);
     setHistory([]);
@@ -810,6 +1005,21 @@ export default function Home() {
     }
   }
 
+
+  function openResumeFile(item: ResumeCarouselItem) {
+    if (item.file.previewUrl) {
+      window.open(item.file.previewUrl, "_blank", "noopener,noreferrer");
+      return;
+    }
+
+    const safeTitle = item.file.fileName.replace(/[<>&]/g, "");
+    const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><title>${safeTitle}</title><style>body{margin:0;background:#111;font-family:Inter,Arial,sans-serif;color:#111}.page{width:min(820px,calc(100% - 32px));min-height:1040px;margin:24px auto;padding:56px;background:#fff;box-shadow:0 30px 90px rgba(0,0,0,.35)}.tag{display:inline-flex;background:#050505;color:#fff;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:800;letter-spacing:.18em;text-transform:uppercase}h1{font-size:56px;line-height:.94;letter-spacing:-.07em;margin:28px 0 8px}.score{font-size:92px;font-weight:1000;letter-spacing:-.1em;margin:22px 0}.muted{color:#667085}.line{height:12px;background:#e8e8e8;border-radius:999px;margin:12px 0}.skills{display:flex;flex-wrap:wrap;gap:8px;margin-top:24px}.skills span{border:1px solid #ddd;border-radius:999px;padding:8px 12px;font-weight:800}.summary{font-size:18px;line-height:1.7;margin-top:28px}</style></head><body><main class="page"><span class="tag">prévia gerada pelo Triador</span><h1>${item.candidate_name}</h1><p class="muted">${item.file.fileName}</p><div class="score">${item.fit_score}</div><p><strong>${scoreLabel(item.fit_score)}</strong> · ${fitVerdict(item.fit_score)}</p><p class="summary">${item.summary}</p><div class="skills">${item.skills.map((skill) => `<span>${skill.replace(/[<>&]/g, "")}</span>`).join("")}</div><div style="margin-top:36px"><div class="line"></div><div class="line" style="width:84%"></div><div class="line" style="width:68%"></div><div class="line" style="width:92%"></div></div></main></body></html>`;
+    const blob = new Blob([html], { type: "text/html" });
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener,noreferrer");
+    window.setTimeout(() => URL.revokeObjectURL(url), 30000);
+  }
+
   if (!token || !user) {
     return <AuthPanel onAuth={onAuth} theme={theme} setTheme={setTheme} />;
   }
@@ -876,28 +1086,40 @@ export default function Home() {
               const isActive = featuredResume?.id === item.id;
 
               return (
-                <button
+                <article
                   className={`resume-carousel-card ${isActive ? "active" : ""}`}
                   key={`${item.id}-${index}`}
-                  type="button"
-                  onClick={() => {
-                    setSelectedCarouselId(item.id);
-                    if (realId) {
-                      const selected = history.find((historyItem) => historyItem.id === realId);
-                      if (selected) setResult(selected);
-                    }
-                  }}
                 >
-                  <ResumeDocumentPreview item={item} />
-                  <div className="resume-card-body">
+                  <button
+                    className="resume-document-button"
+                    type="button"
+                    onClick={() => openResumeFile(item)}
+                    aria-label={`Abrir currículo ${item.file.fileName}`}
+                    title={`Abrir ${item.file.fileName}`}
+                  >
+                    <ResumeDocumentPreview item={item} />
+                  </button>
+
+                  <button
+                    className="resume-card-body"
+                    type="button"
+                    onClick={() => {
+                      setSelectedCarouselId(item.id);
+                      if (realId) {
+                        const selected = history.find((historyItem) => historyItem.id === realId);
+                        if (selected) setResult(selected);
+                      }
+                    }}
+                    aria-label={`Selecionar análise de ${item.candidate_name}`}
+                  >
                     <span>{item.fit_score}</span>
                     <div>
                       <strong>{item.candidate_name}</strong>
                       <small>{item.file.fileName}</small>
                     </div>
                     <i>{item.skills.slice(0, 3).join(" · ")}</i>
-                  </div>
-                </button>
+                  </button>
+                </article>
               );
             })}
           </div>
