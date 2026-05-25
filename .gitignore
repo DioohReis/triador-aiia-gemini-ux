@@ -1,0 +1,18 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+backend/.env
+backend/triador.db
+backend/*.db
+
+# Node
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+frontend/out/
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
