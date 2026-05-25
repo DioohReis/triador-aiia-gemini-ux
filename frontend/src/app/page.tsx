@@ -143,10 +143,10 @@ function ParticleTextCanvas() {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const context = canvas.getContext("2d", { willReadFrequently: true });
+    const canvasEl = canvas;
+    const context = canvasEl.getContext("2d", { willReadFrequently: true });
     if (!context) return;
 
-    const canvasEl = canvas;
     const ctx = context;
 
     type Particle = {
@@ -173,21 +173,29 @@ function ParticleTextCanvas() {
       radius: 150,
     };
 
-    const getBaseFontSize = () => {
-      if (stageWidth < 420) return 54;
-      if (stageWidth < 640) return 66;
-      if (stageWidth < 980) return 94;
-      return 154;
-    };
+    function clamp(value: number, min: number, max: number) {
+      return Math.min(Math.max(value, min), max);
+    }
+
+    function getInitialFontSize() {
+      if (stageWidth < 380) return clamp(stageWidth * 0.145, 42, 56);
+      if (stageWidth < 520) return clamp(stageWidth * 0.155, 54, 70);
+      if (stageWidth < 760) return clamp(stageWidth * 0.135, 70, 92);
+      if (stageWidth < 1080) return clamp(stageWidth * 0.115, 92, 128);
+      return clamp(stageWidth * 0.095, 128, 172);
+    }
 
     function getFittedFontSize(lines: string[]) {
-      let fontSize = getBaseFontSize();
-      const maxWidth = stageWidth * (stageWidth < 620 ? 0.88 : 0.76);
+      let fontSize = getInitialFontSize();
+      const maxWidth = stageWidth * (stageWidth < 620 ? 0.76 : stageWidth < 980 ? 0.68 : 0.58);
+      const maxHeight = stageHeight * (stageHeight < 520 ? 0.58 : 0.52);
 
-      while (fontSize > 38) {
+      while (fontSize > 34) {
         ctx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
-        const widest = Math.max(...lines.map((line) => ctx.measureText(line).width));
-        if (widest <= maxWidth) break;
+        const widestLine = Math.max(...lines.map((line) => ctx.measureText(line).width));
+        const totalHeight = fontSize + fontSize * 0.76 * (lines.length - 1);
+
+        if (widestLine <= maxWidth && totalHeight <= maxHeight) break;
         fontSize -= 2;
       }
 
@@ -195,15 +203,15 @@ function ParticleTextCanvas() {
     }
 
     function resize() {
-      const rect = canvasEl.parentElement?.getBoundingClientRect();
-      stageWidth = Math.max(320, Math.floor(rect?.width || window.innerWidth));
-      stageHeight = Math.max(360, Math.floor(rect?.height || window.innerHeight));
+      const rect = canvasEl.getBoundingClientRect();
+      stageWidth = Math.max(280, Math.round(rect.width || canvasEl.clientWidth || window.innerWidth));
+      stageHeight = Math.max(300, Math.round(rect.height || canvasEl.clientHeight || window.innerHeight));
 
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvasEl.width = stageWidth * dpr;
-      canvasEl.height = stageHeight * dpr;
-      canvasEl.style.width = `${stageWidth}px`;
-      canvasEl.style.height = `${stageHeight}px`;
+      canvasEl.width = Math.round(stageWidth * dpr);
+      canvasEl.height = Math.round(stageHeight * dpr);
+      canvasEl.style.width = "100%";
+      canvasEl.style.height = "100%";
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       buildParticles();
     }
@@ -215,8 +223,8 @@ function ParticleTextCanvas() {
       const lines = ["triador", "your", "career"];
       const fontSize = getFittedFontSize(lines);
       const lineHeight = fontSize * 0.76;
-      const centerY = h * (w < 620 ? 0.51 : 0.5);
-      const startY = centerY - lineHeight;
+      const visualCenterY = h * (w < 620 ? 0.49 : 0.5);
+      const startY = visualCenterY - lineHeight;
 
       ctx.clearRect(0, 0, w, h);
       ctx.fillStyle = "white";
@@ -231,7 +239,7 @@ function ParticleTextCanvas() {
       const imageData = ctx.getImageData(0, 0, w, h);
       ctx.clearRect(0, 0, w, h);
 
-      const gap = w < 520 ? 4 : w < 860 ? 3.5 : 3;
+      const gap = w < 420 ? 4 : w < 760 ? 3.5 : 3;
       for (let y = 0; y < h; y += gap) {
         for (let x = 0; x < w; x += gap) {
           const index = (Math.floor(y) * w + Math.floor(x)) * 4;
@@ -239,15 +247,15 @@ function ParticleTextCanvas() {
 
           if (alpha > 116) {
             particles.push({
-              x: x + (Math.random() - 0.5) * 360,
-              y: y + (Math.random() - 0.5) * 360,
+              x: x + (Math.random() - 0.5) * 300,
+              y: y + (Math.random() - 0.5) * 300,
               baseX: x,
               baseY: y,
-              size: Math.random() * 1.7 + 0.62,
+              size: Math.random() * 1.55 + 0.58,
               velocity: Math.random() * 0.15 + 0.045,
-              density: Math.random() * 56 + 16,
-              opacity: Math.random() * 0.72 + 0.32,
-              drift: Math.random() * 0.62 + 0.16,
+              density: Math.random() * 54 + 14,
+              opacity: Math.random() * 0.7 + 0.32,
+              drift: Math.random() * 0.55 + 0.14,
               angle: Math.random() * Math.PI * 2,
             });
           }
@@ -274,8 +282,8 @@ function ParticleTextCanvas() {
           const directionX = dx / distance;
           const directionY = dy / distance;
 
-          p.x -= directionX * force * p.density * 1.2;
-          p.y -= directionY * force * p.density * 1.2;
+          p.x -= directionX * force * p.density * 1.18;
+          p.y -= directionY * force * p.density * 1.18;
         } else {
           p.x += (p.baseX - p.x) * p.velocity;
           p.y += (p.baseY - p.y) * p.velocity;
@@ -290,44 +298,39 @@ function ParticleTextCanvas() {
       frameId = requestAnimationFrame(animate);
     }
 
-    function getLocalPointer(clientX: number, clientY: number) {
+    function setLocalPointer(clientX: number, clientY: number) {
       const rect = canvasEl.getBoundingClientRect();
       mouse.x = clientX - rect.left;
       mouse.y = clientY - rect.top;
     }
 
-    function onMouseMove(event: MouseEvent) {
-      getLocalPointer(event.clientX, event.clientY);
+    function onPointerMove(event: PointerEvent) {
+      if (event.pointerType === "touch") return;
+      setLocalPointer(event.clientX, event.clientY);
     }
 
-    function onMouseLeave() {
+    function onPointerLeave() {
       mouse.x = -9999;
       mouse.y = -9999;
     }
 
-    function onTouchMove(event: TouchEvent) {
-      const touch = event.touches[0];
-      if (!touch) return;
-      getLocalPointer(touch.clientX, touch.clientY);
-    }
-
-    const observer = new ResizeObserver(resize);
-    if (canvasEl.parentElement) observer.observe(canvasEl.parentElement);
+    const observer = new ResizeObserver(() => resize());
+    observer.observe(canvasEl);
     resize();
     animate();
 
+    canvasEl.addEventListener("pointermove", onPointerMove, { passive: true });
+    canvasEl.addEventListener("pointerleave", onPointerLeave);
     window.addEventListener("resize", resize);
-    canvasEl.addEventListener("mousemove", onMouseMove);
-    canvasEl.addEventListener("mouseleave", onMouseLeave);
-    canvasEl.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("orientationchange", resize);
 
     return () => {
       cancelAnimationFrame(frameId);
       observer.disconnect();
+      canvasEl.removeEventListener("pointermove", onPointerMove);
+      canvasEl.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("resize", resize);
-      canvasEl.removeEventListener("mousemove", onMouseMove);
-      canvasEl.removeEventListener("mouseleave", onMouseLeave);
-      canvasEl.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("orientationchange", resize);
     };
   }, []);
 
