@@ -56,7 +56,7 @@ class LLMAnalysisService:
                 ),
             )
         except Exception as exc:
-            raise LLMUnavailableError(f"Falha ao chamar o provedor Gemini: {exc}") from exc
+            raise LLMUnavailableError("Falha ao chamar o provedor Gemini") from exc
 
         raw_text = response.text or ""
 
