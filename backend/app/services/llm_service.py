@@ -26,13 +26,13 @@ class LLMAnalysisService:
             api_key = settings.gemini_api_key
 
             if not api_key:
-                raise LLMUnavailableError("GEMINI_API_KEY não configurada no arquivo .env")
+                raise LLMUnavailableError("GEMINI_API_KEY não configurada. Verifique as variáveis de ambiente do Render.")
 
             try:
                 self.client = genai.Client(api_key=api_key)
-                self.model = settings.gemini_model
+                self.model = settings.gemini_model or "gemini-2.5-flash"
             except Exception as exc:
-                raise LLMUnavailableError("Falha ao inicializar o cliente Gemini") from exc
+                raise LLMUnavailableError(f"Falha ao inicializar o cliente Gemini: {exc}") from exc
         else:
             self.client = None
             self.model = "mock"
@@ -56,7 +56,21 @@ class LLMAnalysisService:
                 ),
             )
         except Exception as exc:
-            raise LLMUnavailableError("Falha ao chamar o provedor Gemini") from exc
+            error_message = str(exc)
+
+            if "API_KEY_INVALID" in error_message or "API key not valid" in error_message:
+                raise LLMUnavailableError("Chave da API Gemini inválida ou revogada. Gere uma nova chave no Google AI Studio e atualize o Render.") from exc
+
+            if "quota" in error_message.lower() or "429" in error_message:
+                raise LLMUnavailableError("Limite de uso da Gemini API atingido. Verifique cota/rate limit no Google AI Studio.") from exc
+
+            if "permission" in error_message.lower() or "403" in error_message:
+                raise LLMUnavailableError("A chave Gemini não tem permissão para acessar esse modelo.") from exc
+
+            if "model" in error_message.lower() or "404" in error_message:
+                raise LLMUnavailableError(f"Modelo Gemini não encontrado ou indisponível: {self.model}") from exc
+
+            raise LLMUnavailableError(f"Falha ao chamar o provedor Gemini: {error_message}") from exc
 
         raw_text = response.text or ""
 
