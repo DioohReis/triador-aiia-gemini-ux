@@ -42,6 +42,20 @@ const API_URL = NORMALIZED_API_URL.endsWith("/api")
   ? NORMALIZED_API_URL
   : `${NORMALIZED_API_URL}/api`;
 
+export class ApiError extends Error {
+  status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
+export function isAuthError(error: unknown): boolean {
+  return error instanceof ApiError && (error.status === 401 || error.status === 403);
+}
+
 function normalizeError(error: unknown): string {
   if (typeof error === "string") return error;
   if (Array.isArray(error)) {
@@ -67,14 +81,15 @@ async function request<T>(path: string, options?: RequestInit, token?: string | 
       },
     });
   } catch {
-    throw new Error(
-      `Não foi possível conectar na API em ${API_URL}. Confirme se o backend está online.`
+    throw new ApiError(
+      `Não foi possível conectar na API em ${API_URL}. Confirme se o backend está online.`,
+      0
     );
   }
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ detail: "Erro inesperado." }));
-    throw new Error(normalizeError(payload));
+    throw new ApiError(normalizeError(payload), response.status);
   }
 
   if (response.status === 204) {

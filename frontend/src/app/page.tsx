@@ -10,6 +10,7 @@ import {
   extractDocument,
   getHealth,
   getMe,
+  isAuthError,
   listAnalyses,
   loginUser,
   registerUser,
@@ -890,14 +891,24 @@ export default function Home() {
         clearStoredToken();
         setToken(null);
         setUser(null);
+        setError("Sua sessão anterior expirou. Entre novamente para continuar.");
       });
   }, []);
 
 
   async function onAuth(authToken: string, authUser: User) {
+    setError("");
     setToken(authToken);
     setUser(authUser);
-    await loadPrivateData(authToken);
+    try {
+      await loadPrivateData(authToken);
+    } catch (err) {
+      if (isAuthError(err)) {
+        handleAuthExpired(err instanceof Error ? err.message : undefined);
+        return;
+      }
+      setError(err instanceof Error ? err.message : "Não foi possível carregar seus dados.");
+    }
   }
 
   function logout() {
@@ -914,6 +925,15 @@ export default function Home() {
     setPendingFilePreview(null);
     setResumeText("");
     setJobText("");
+  }
+
+  function handleAuthExpired(message = "Sua sessão expirou. Entre novamente para continuar.") {
+    clearStoredToken();
+    setToken(null);
+    setUser(null);
+    setHistory([]);
+    setResult(null);
+    setError(message);
   }
 
   async function handleFile(file?: File) {
@@ -946,7 +966,11 @@ export default function Home() {
       setFileInfo(`${extracted.filename} · ${extracted.characters.toLocaleString("pt-BR")} caracteres extraídos`);
     } catch (err) {
       setFileInfo("");
-      setError(err instanceof Error ? err.message : "Erro ao extrair texto do arquivo.");
+      if (isAuthError(err)) {
+        handleAuthExpired(err instanceof Error ? err.message : undefined);
+      } else {
+        setError(err instanceof Error ? err.message : "Erro ao extrair texto do arquivo.");
+      }
     } finally {
       setExtracting(false);
     }
@@ -977,7 +1001,11 @@ export default function Home() {
       }
       setHistory((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao analisar currículo.");
+      if (isAuthError(err)) {
+        handleAuthExpired(err instanceof Error ? err.message : undefined);
+      } else {
+        setError(err instanceof Error ? err.message : "Erro ao analisar currículo.");
+      }
     } finally {
       setLoading(false);
     }
@@ -1002,7 +1030,11 @@ export default function Home() {
       if (result?.id === id) setResult(null);
       if (selectedCarouselId === `history-${id}`) setSelectedCarouselId(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível excluir.");
+      if (isAuthError(err)) {
+        handleAuthExpired(err instanceof Error ? err.message : undefined);
+      } else {
+        setError(err instanceof Error ? err.message : "Não foi possível excluir.");
+      }
     } finally {
       setDeletingId(null);
     }

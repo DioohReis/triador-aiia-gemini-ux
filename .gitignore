@@ -16,3 +16,4 @@ frontend/out/
 .DS_Store
 .vscode/
 .idea/
+backend/user_databases/

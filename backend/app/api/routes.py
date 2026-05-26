@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 
 from app.core_config import settings
 from app.db.session import get_db
+from app.db.user_database import user_analysis_session
 from app.models.user import User
 from app.schemas.analysis import (
     AnalyzeRequest,
@@ -58,9 +59,10 @@ def create_analysis(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    service = AnalysisService(db)
     try:
-        return service.analyze_and_save(payload, user_id=current_user.id)
+        with user_analysis_session(current_user.id) as user_db:
+            service = AnalysisService(user_db)
+            return service.analyze_and_save(payload, user_id=current_user.id)
     except LLMUnavailableError as exc:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(exc)) from exc
     except LLMFormatError as exc:
@@ -69,7 +71,8 @@ def create_analysis(
 
 @router.get("/analyses", response_model=list[AnalysisResponse])
 def list_analyses(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return AnalysisService(db).history(user_id=current_user.id)
+    with user_analysis_session(current_user.id) as user_db:
+        return AnalysisService(user_db).history(user_id=current_user.id)
 
 
 @router.delete("/analyses/{analysis_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -78,7 +81,8 @@ def delete_analysis(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    deleted = AnalysisService(db).delete_analysis(analysis_id, user_id=current_user.id)
+    with user_analysis_session(current_user.id) as user_db:
+        deleted = AnalysisService(user_db).delete_analysis(analysis_id, user_id=current_user.id)
 
     if not deleted:
         raise HTTPException(

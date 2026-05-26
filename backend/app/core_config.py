@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     app_name: str = "Triador aiia"
     environment: str = "local"
     database_url: str = "sqlite:///./triador.db"
+    # Diretório onde ficam os bancos SQLite individuais de cada usuário.
+    # O banco principal guarda somente autenticação; cada usuário tem um arquivo próprio para análises.
+    user_database_dir: str = "./user_databases"
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,http://localhost:3001,http://127.0.0.1:3001"
     secret_key: str = "triador-local-dev-secret-change-me"
 
