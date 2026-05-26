@@ -2571,3 +2571,78 @@ body {
     touch-action: none;
   }
 }
+
+
+/* =========================================================
+   UX/UI FIX — MOBILE PARTICLE CANVAS v2
+   Ajusta a fumaça/palavra para 425px: mais alta, maior e com
+   menor altura total para permitir scroll confortável no celular.
+========================================================= */
+@media (max-width: 620px) {
+  .proto-hero.proto-hero-stage-only {
+    width: min(100vw - 10px, 520px) !important;
+    max-width: calc(100vw - 10px) !important;
+    height: clamp(500px, 72svh, 620px) !important;
+    min-height: 500px !important;
+    max-height: 620px !important;
+    margin: 6px auto 0 !important;
+    overflow: hidden !important;
+  }
+
+  .proto-particle-stage {
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    overflow: hidden !important;
+  }
+
+  .proto-particle-stage::before {
+    inset: 4% -4% 22% !important;
+    filter: blur(32px) !important;
+  }
+
+  .proto-particle-stage .particle-text-canvas,
+  .particle-text-canvas {
+    width: 100% !important;
+    height: 100% !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    touch-action: pan-y !important;
+    cursor: pointer;
+  }
+
+  .proto-hero-stage-only .proto-nav {
+    width: calc(100% - 26px) !important;
+    padding-top: 12px !important;
+    padding-bottom: 6px !important;
+    position: relative !important;
+    z-index: 5 !important;
+  }
+}
+
+/* Mobile 400–460px: ponto crítico testado em 425px */
+@media (min-width: 400px) and (max-width: 460px) {
+  .proto-hero.proto-hero-stage-only {
+    height: clamp(525px, 74svh, 640px) !important;
+    min-height: 525px !important;
+    max-height: 640px !important;
+  }
+}
+
+/* Mobile pequeno */
+@media (max-width: 399px) {
+  .proto-hero.proto-hero-stage-only {
+    height: clamp(485px, 70svh, 590px) !important;
+    min-height: 485px !important;
+    max-height: 590px !important;
+  }
+}
+
+/* Landscape mobile: evita travar rolagem em telas baixas */
+@media (orientation: landscape) and (max-height: 560px) {
+  .proto-hero.proto-hero-stage-only {
+    height: 480px !important;
+    min-height: 480px !important;
+    max-height: 480px !important;
+  }
+}
