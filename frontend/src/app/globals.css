@@ -2340,3 +2340,234 @@ body {
     min-height: 560px;
   }
 }
+
+/* =========================================================
+   FIX DEFINITIVO — CANVAS MULTI-BREAKPOINT RESPONSIVO
+   Mantém o nome/texto original da animação e adapta o canvas
+   por dispositivo, sem alterar identidade visual.
+========================================================= */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+}
+
+.proto-shell {
+  width: 100%;
+  max-width: 100vw;
+  overflow-x: hidden !important;
+}
+
+.proto-hero.proto-hero-stage-only {
+  position: relative !important;
+  width: min(100%, 1280px) !important;
+  max-width: calc(100vw - 24px) !important;
+  height: min(860px, calc(100svh - 24px)) !important;
+  min-height: 620px !important;
+  margin: 12px auto 0 !important;
+  overflow: hidden !important;
+  border-radius: 0 !important;
+  background: #000 !important;
+  contain: layout paint size;
+}
+
+.proto-particle-stage {
+  position: absolute !important;
+  inset: 0 !important;
+  z-index: 1 !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+  contain: strict;
+}
+
+.proto-particle-stage .particle-text-canvas,
+.particle-text-canvas {
+  position: absolute !important;
+  inset: 0 !important;
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
+  max-width: 100% !important;
+  max-height: 100% !important;
+  object-fit: contain !important;
+  overflow: hidden !important;
+  pointer-events: none !important;
+}
+
+.proto-hero-overlay,
+.proto-glow,
+.proto-hero-stage-only .proto-nav {
+  max-width: 100%;
+}
+
+/* Desktop grande */
+@media (min-width: 1441px) {
+  .proto-hero.proto-hero-stage-only {
+    width: min(100%, 1920px) !important;
+    max-width: calc(100vw - 64px) !important;
+    height: min(920px, calc(100svh - 80px)) !important;
+    min-height: 760px !important;
+    margin-top: 28px !important;
+  }
+}
+
+/* Notebook / desktop padrão */
+@media (min-width: 1025px) and (max-width: 1440px) {
+  .proto-hero.proto-hero-stage-only {
+    width: min(100%, 1120px) !important;
+    max-width: calc(100vw - 40px) !important;
+    height: min(820px, calc(100svh - 56px)) !important;
+    min-height: 680px !important;
+    margin-top: 20px !important;
+  }
+}
+
+/* Tablet horizontal */
+@media (min-width: 769px) and (max-width: 1024px) {
+  .proto-hero.proto-hero-stage-only {
+    width: min(100%, 860px) !important;
+    max-width: calc(100vw - 28px) !important;
+    height: min(800px, calc(100svh - 36px)) !important;
+    min-height: 640px !important;
+    margin-top: 14px !important;
+  }
+
+  .proto-hero-stage-only .proto-nav {
+    width: calc(100% - 44px) !important;
+  }
+}
+
+/* Tablet vertical / mobile grande */
+@media (min-width: 521px) and (max-width: 768px) {
+  .proto-hero.proto-hero-stage-only {
+    width: calc(100vw - 20px) !important;
+    max-width: calc(100vw - 20px) !important;
+    height: min(820px, calc(100svh - 20px)) !important;
+    min-height: 620px !important;
+    margin-top: 10px !important;
+  }
+
+  .proto-hero-stage-only .proto-nav {
+    width: calc(100% - 32px) !important;
+    padding-top: 16px !important;
+  }
+}
+
+/* Mobile */
+@media (min-width: 381px) and (max-width: 520px) {
+  .proto-hero.proto-hero-stage-only {
+    width: calc(100vw - 14px) !important;
+    max-width: calc(100vw - 14px) !important;
+    height: min(760px, calc(100svh - 14px)) !important;
+    min-height: 580px !important;
+    margin-top: 7px !important;
+  }
+
+  .proto-hero-stage-only .proto-nav {
+    width: calc(100% - 24px) !important;
+    padding-top: 14px !important;
+    gap: 12px !important;
+  }
+
+  .proto-hero-stage-only .proto-brand p {
+    font-size: .76rem !important;
+    letter-spacing: .22em !important;
+  }
+
+  .proto-hero-stage-only .proto-brand span {
+    font-size: .68rem !important;
+  }
+
+  .proto-hero-stage-only .proto-login-button {
+    min-height: 40px !important;
+    padding-inline: 16px !important;
+    font-size: .82rem !important;
+  }
+}
+
+/* Mobile pequeno */
+@media (max-width: 380px) {
+  .proto-hero.proto-hero-stage-only {
+    width: calc(100vw - 10px) !important;
+    max-width: calc(100vw - 10px) !important;
+    height: min(700px, calc(100svh - 10px)) !important;
+    min-height: 540px !important;
+    margin-top: 5px !important;
+  }
+
+  .proto-hero-stage-only .proto-nav {
+    width: calc(100% - 20px) !important;
+    padding-top: 12px !important;
+    gap: 10px !important;
+  }
+
+  .proto-hero-stage-only .proto-brand-icon {
+    width: 38px !important;
+    height: 38px !important;
+    border-radius: 14px !important;
+  }
+
+  .proto-hero-stage-only .proto-brand p {
+    font-size: .68rem !important;
+    letter-spacing: .18em !important;
+  }
+
+  .proto-hero-stage-only .proto-brand span {
+    font-size: .62rem !important;
+  }
+
+  .proto-hero-stage-only .proto-login-button {
+    min-height: 38px !important;
+    padding-inline: 14px !important;
+    font-size: .78rem !important;
+  }
+}
+
+
+/* =========================================================
+   PATCH CANVAS INTERATIVO + 425PX MAIOR
+   Mantém o nome original e melhora hover/toque nas partículas.
+========================================================= */
+.proto-particle-stage,
+.proto-particle-stage .particle-text-canvas,
+.particle-text-canvas {
+  pointer-events: auto !important;
+}
+
+.proto-particle-stage .particle-text-canvas,
+.particle-text-canvas {
+  touch-action: none;
+  cursor: crosshair;
+}
+
+@media (min-width: 381px) and (max-width: 520px) {
+  .proto-hero.proto-hero-stage-only {
+    min-height: 640px !important;
+    height: min(800px, calc(100svh - 10px)) !important;
+  }
+
+  .proto-particle-stage {
+    min-height: 560px !important;
+  }
+}
+
+@media (min-width: 400px) and (max-width: 460px) {
+  .proto-hero.proto-hero-stage-only {
+    width: calc(100vw - 10px) !important;
+    max-width: calc(100vw - 10px) !important;
+    min-height: 670px !important;
+    height: min(820px, calc(100svh - 8px)) !important;
+  }
+}
+
+@media (max-width: 380px) {
+  .proto-particle-stage .particle-text-canvas,
+  .particle-text-canvas {
+    touch-action: none;
+  }
+}

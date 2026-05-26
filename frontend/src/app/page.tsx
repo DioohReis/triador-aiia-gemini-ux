@@ -10,7 +10,6 @@ import {
   extractDocument,
   getHealth,
   getMe,
-  isAuthError,
   listAnalyses,
   loginUser,
   registerUser,
@@ -163,6 +162,22 @@ function ParticleTextCanvas() {
       angle: number;
     };
 
+    type CanvasPreset = {
+      name: "mobile-xs" | "mobile" | "tablet" | "laptop" | "desktop" | "wide";
+      maxTextWidthRatio: number;
+      maxTextHeightRatio: number;
+      fontRatio: number;
+      minFont: number;
+      maxFont: number;
+      lineHeightRatio: number;
+      centerY: number;
+      gap: number;
+      scatter: number;
+      particleMin: number;
+      particleMax: number;
+      mouseRadius: number;
+    };
+
     let particles: Particle[] = [];
     let frameId = 0;
     let stageWidth = 0;
@@ -171,33 +186,143 @@ function ParticleTextCanvas() {
     const mouse = {
       x: -9999,
       y: -9999,
-      radius: 150,
+      radius: 130,
+      active: false,
+      isTouching: false,
     };
 
     function clamp(value: number, min: number, max: number) {
       return Math.min(Math.max(value, min), max);
     }
 
-    function getInitialFontSize() {
-      if (stageWidth < 380) return clamp(stageWidth * 0.145, 42, 56);
-      if (stageWidth < 520) return clamp(stageWidth * 0.155, 54, 70);
-      if (stageWidth < 760) return clamp(stageWidth * 0.135, 70, 92);
-      if (stageWidth < 1080) return clamp(stageWidth * 0.115, 92, 128);
-      return clamp(stageWidth * 0.095, 128, 172);
+    function getCanvasPreset(width: number, height: number): CanvasPreset {
+      const shortViewport = height < 680;
+
+      if (width <= 380) {
+        return {
+          name: "mobile-xs",
+          maxTextWidthRatio: 0.82,
+          maxTextHeightRatio: shortViewport ? 0.31 : 0.38,
+          fontRatio: 0.098,
+          minFont: 28,
+          maxFont: 46,
+          lineHeightRatio: 0.86,
+          centerY: shortViewport ? 0.50 : 0.52,
+          gap: 4.7,
+          scatter: 50,
+          particleMin: 0.52,
+          particleMax: 1.14,
+          mouseRadius: 100,
+        };
+      }
+
+      if (width <= 520) {
+        return {
+          name: "mobile",
+          maxTextWidthRatio: 0.88,
+          maxTextHeightRatio: shortViewport ? 0.36 : 0.44,
+          fontRatio: 0.118,
+          minFont: 36,
+          maxFont: 64,
+          lineHeightRatio: 0.84,
+          centerY: shortViewport ? 0.52 : 0.54,
+          gap: 4.2,
+          scatter: 68,
+          particleMin: 0.58,
+          particleMax: 1.28,
+          mouseRadius: 118,
+        };
+      }
+
+      if (width <= 768) {
+        return {
+          name: "tablet",
+          maxTextWidthRatio: 0.70,
+          maxTextHeightRatio: 0.36,
+          fontRatio: 0.086,
+          minFont: 36,
+          maxFont: 62,
+          lineHeightRatio: 0.84,
+          centerY: 0.50,
+          gap: 4.6,
+          scatter: 78,
+          particleMin: 0.54,
+          particleMax: 1.18,
+          mouseRadius: 100,
+        };
+      }
+
+      if (width <= 1180) {
+        return {
+          name: "laptop",
+          maxTextWidthRatio: 0.64,
+          maxTextHeightRatio: 0.42,
+          fontRatio: 0.083,
+          minFont: 54,
+          maxFont: 92,
+          lineHeightRatio: 0.82,
+          centerY: 0.53,
+          gap: 4.0,
+          scatter: 110,
+          particleMin: 0.56,
+          particleMax: 1.28,
+          mouseRadius: 120,
+        };
+      }
+
+      if (width <= 1600) {
+        return {
+          name: "desktop",
+          maxTextWidthRatio: 0.58,
+          maxTextHeightRatio: 0.44,
+          fontRatio: 0.074,
+          minFont: 72,
+          maxFont: 126,
+          lineHeightRatio: 0.80,
+          centerY: 0.54,
+          gap: 3.4,
+          scatter: 150,
+          particleMin: 0.58,
+          particleMax: 1.45,
+          mouseRadius: 145,
+        };
+      }
+
+      return {
+        name: "wide",
+        maxTextWidthRatio: 0.48,
+        maxTextHeightRatio: 0.42,
+        fontRatio: 0.060,
+        minFont: 88,
+        maxFont: 160,
+        lineHeightRatio: 0.78,
+        centerY: 0.54,
+        gap: 3.2,
+        scatter: 180,
+        particleMin: 0.62,
+        particleMax: 1.52,
+        mouseRadius: 155,
+      };
     }
 
-    function getFittedFontSize(lines: string[]) {
-      let fontSize = getInitialFontSize();
-      const maxWidth = stageWidth * (stageWidth < 620 ? 0.76 : stageWidth < 980 ? 0.68 : 0.58);
-      const maxHeight = stageHeight * (stageHeight < 520 ? 0.58 : 0.52);
+    function getParticleLines() {
+      // Mantém exatamente o texto original da animação.
+      // A responsividade acontece por presets de canvas, não trocando o nome.
+      return ["triador", "your", "career"];
+    }
 
-      while (fontSize > 34) {
+    function getFittedFontSize(lines: string[], preset: CanvasPreset) {
+      let fontSize = clamp(stageWidth * preset.fontRatio, preset.minFont, preset.maxFont);
+      const maxWidth = stageWidth * preset.maxTextWidthRatio;
+      const maxHeight = stageHeight * preset.maxTextHeightRatio;
+
+      while (fontSize > preset.minFont) {
         ctx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
         const widestLine = Math.max(...lines.map((line) => ctx.measureText(line).width));
-        const totalHeight = fontSize + fontSize * 0.76 * (lines.length - 1);
+        const totalHeight = fontSize + fontSize * preset.lineHeightRatio * (lines.length - 1);
 
         if (widestLine <= maxWidth && totalHeight <= maxHeight) break;
-        fontSize -= 2;
+        fontSize -= 1;
       }
 
       return fontSize;
@@ -205,15 +330,20 @@ function ParticleTextCanvas() {
 
     function resize() {
       const rect = canvasEl.getBoundingClientRect();
-      stageWidth = Math.max(280, Math.round(rect.width || canvasEl.clientWidth || window.innerWidth));
-      stageHeight = Math.max(300, Math.round(rect.height || canvasEl.clientHeight || window.innerHeight));
+      const width = Math.round(rect.width || canvasEl.clientWidth || window.innerWidth);
+      const height = Math.round(rect.height || canvasEl.clientHeight || window.innerHeight);
 
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvasEl.width = Math.round(stageWidth * dpr);
-      canvasEl.height = Math.round(stageHeight * dpr);
+      stageWidth = Math.max(280, width);
+      stageHeight = Math.max(420, height);
+
+      // Desenha em coordenadas CSS reais. Isso evita crop lateral em DPR alto
+      // e mantém o texto centralizado em DevTools, celular real e desktop.
+      canvasEl.width = stageWidth;
+      canvasEl.height = stageHeight;
       canvasEl.style.width = "100%";
       canvasEl.style.height = "100%";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
       buildParticles();
     }
 
@@ -221,11 +351,14 @@ function ParticleTextCanvas() {
       particles = [];
       const w = stageWidth;
       const h = stageHeight;
-      const lines = ["triador", "your", "career"];
-      const fontSize = getFittedFontSize(lines);
-      const lineHeight = fontSize * 0.76;
-      const visualCenterY = h * (w < 620 ? 0.49 : 0.5);
-      const startY = visualCenterY - lineHeight;
+      const preset = getCanvasPreset(w, h);
+      const lines = getParticleLines();
+      const fontSize = getFittedFontSize(lines, preset);
+      const lineHeight = fontSize * preset.lineHeightRatio;
+      const centerY = h * preset.centerY;
+      const startY = centerY - (lineHeight * (lines.length - 1)) / 2;
+
+      mouse.radius = preset.mouseRadius;
 
       ctx.clearRect(0, 0, w, h);
       ctx.fillStyle = "white";
@@ -240,23 +373,23 @@ function ParticleTextCanvas() {
       const imageData = ctx.getImageData(0, 0, w, h);
       ctx.clearRect(0, 0, w, h);
 
-      const gap = w < 420 ? 4 : w < 760 ? 3.5 : 3;
+      const gap = preset.gap;
       for (let y = 0; y < h; y += gap) {
         for (let x = 0; x < w; x += gap) {
           const index = (Math.floor(y) * w + Math.floor(x)) * 4;
           const alpha = imageData.data[index + 3];
 
-          if (alpha > 116) {
+          if (alpha > 120) {
             particles.push({
-              x: x + (Math.random() - 0.5) * 300,
-              y: y + (Math.random() - 0.5) * 300,
+              x: x + (Math.random() - 0.5) * preset.scatter,
+              y: y + (Math.random() - 0.5) * preset.scatter,
               baseX: x,
               baseY: y,
-              size: Math.random() * 1.55 + 0.58,
-              velocity: Math.random() * 0.15 + 0.045,
-              density: Math.random() * 54 + 14,
-              opacity: Math.random() * 0.7 + 0.32,
-              drift: Math.random() * 0.55 + 0.14,
+              size: Math.random() * (preset.particleMax - preset.particleMin) + preset.particleMin,
+              velocity: Math.random() * 0.14 + 0.052,
+              density: Math.random() * 46 + 12,
+              opacity: Math.random() * 0.68 + 0.34,
+              drift: Math.random() * 0.44 + 0.10,
               angle: Math.random() * Math.PI * 2,
             });
           }
@@ -271,20 +404,22 @@ function ParticleTextCanvas() {
 
       particles.forEach((p) => {
         p.angle += 0.012;
-        p.x += Math.cos(p.angle) * p.drift * 0.12;
-        p.y += Math.sin(p.angle) * p.drift * 0.12;
+        p.x += Math.cos(p.angle) * p.drift * 0.11;
+        p.y += Math.sin(p.angle) * p.drift * 0.11;
 
         const dx = mouse.x - p.x;
         const dy = mouse.y - p.y;
         const distance = Math.sqrt(dx * dx + dy * dy) || 1;
+        const interactionRadius = mouse.isTouching ? mouse.radius * 1.35 : mouse.radius;
 
-        if (distance < mouse.radius) {
-          const force = (mouse.radius - distance) / mouse.radius;
+        if (distance < interactionRadius) {
+          const force = (interactionRadius - distance) / interactionRadius;
           const directionX = dx / distance;
           const directionY = dy / distance;
+          const strength = mouse.isTouching ? 1.55 : 1.18;
 
-          p.x -= directionX * force * p.density * 1.18;
-          p.y -= directionY * force * p.density * 1.18;
+          p.x -= directionX * force * p.density * strength;
+          p.y -= directionY * force * p.density * strength;
         } else {
           p.x += (p.baseX - p.x) * p.velocity;
           p.y += (p.baseY - p.y) * p.velocity;
@@ -306,21 +441,49 @@ function ParticleTextCanvas() {
     }
 
     function onPointerMove(event: PointerEvent) {
-      if (event.pointerType === "touch") return;
+      mouse.active = true;
+      mouse.isTouching = event.pointerType === "touch";
       setLocalPointer(event.clientX, event.clientY);
     }
 
-    function onPointerLeave() {
+    function onPointerDown(event: PointerEvent) {
+      mouse.active = true;
+      mouse.isTouching = event.pointerType === "touch";
+      setLocalPointer(event.clientX, event.clientY);
+      try {
+        canvasEl.setPointerCapture(event.pointerId);
+      } catch {
+        // Alguns browsers mobile não permitem capture em todos os contextos.
+      }
+    }
+
+    function onPointerUp() {
+      mouse.isTouching = false;
       mouse.x = -9999;
       mouse.y = -9999;
     }
 
-    const observer = new ResizeObserver(() => resize());
+    function onPointerLeave() {
+      mouse.active = false;
+      mouse.isTouching = false;
+      mouse.x = -9999;
+      mouse.y = -9999;
+    }
+
+    let resizeTimer: number | null = null;
+    const observer = new ResizeObserver(() => {
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      resizeTimer = window.setTimeout(resize, 80);
+    });
+
     observer.observe(canvasEl);
     resize();
     animate();
 
     canvasEl.addEventListener("pointermove", onPointerMove, { passive: true });
+    canvasEl.addEventListener("pointerdown", onPointerDown, { passive: true });
+    canvasEl.addEventListener("pointerup", onPointerUp, { passive: true });
+    canvasEl.addEventListener("pointercancel", onPointerUp, { passive: true });
     canvasEl.addEventListener("pointerleave", onPointerLeave);
     window.addEventListener("resize", resize);
     window.addEventListener("orientationchange", resize);
@@ -328,7 +491,11 @@ function ParticleTextCanvas() {
     return () => {
       cancelAnimationFrame(frameId);
       observer.disconnect();
+      if (resizeTimer) window.clearTimeout(resizeTimer);
       canvasEl.removeEventListener("pointermove", onPointerMove);
+      canvasEl.removeEventListener("pointerdown", onPointerDown);
+      canvasEl.removeEventListener("pointerup", onPointerUp);
+      canvasEl.removeEventListener("pointercancel", onPointerUp);
       canvasEl.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
@@ -891,24 +1058,14 @@ export default function Home() {
         clearStoredToken();
         setToken(null);
         setUser(null);
-        setError("Sua sessão anterior expirou. Entre novamente para continuar.");
       });
   }, []);
 
 
   async function onAuth(authToken: string, authUser: User) {
-    setError("");
     setToken(authToken);
     setUser(authUser);
-    try {
-      await loadPrivateData(authToken);
-    } catch (err) {
-      if (isAuthError(err)) {
-        handleAuthExpired(err instanceof Error ? err.message : undefined);
-        return;
-      }
-      setError(err instanceof Error ? err.message : "Não foi possível carregar seus dados.");
-    }
+    await loadPrivateData(authToken);
   }
 
   function logout() {
@@ -925,15 +1082,6 @@ export default function Home() {
     setPendingFilePreview(null);
     setResumeText("");
     setJobText("");
-  }
-
-  function handleAuthExpired(message = "Sua sessão expirou. Entre novamente para continuar.") {
-    clearStoredToken();
-    setToken(null);
-    setUser(null);
-    setHistory([]);
-    setResult(null);
-    setError(message);
   }
 
   async function handleFile(file?: File) {
@@ -966,11 +1114,7 @@ export default function Home() {
       setFileInfo(`${extracted.filename} · ${extracted.characters.toLocaleString("pt-BR")} caracteres extraídos`);
     } catch (err) {
       setFileInfo("");
-      if (isAuthError(err)) {
-        handleAuthExpired(err instanceof Error ? err.message : undefined);
-      } else {
-        setError(err instanceof Error ? err.message : "Erro ao extrair texto do arquivo.");
-      }
+      setError(err instanceof Error ? err.message : "Erro ao extrair texto do arquivo.");
     } finally {
       setExtracting(false);
     }
@@ -1001,11 +1145,7 @@ export default function Home() {
       }
       setHistory((current) => [analysis, ...current.filter((item) => item.id !== analysis.id)]);
     } catch (err) {
-      if (isAuthError(err)) {
-        handleAuthExpired(err instanceof Error ? err.message : undefined);
-      } else {
-        setError(err instanceof Error ? err.message : "Erro ao analisar currículo.");
-      }
+      setError(err instanceof Error ? err.message : "Erro ao analisar currículo.");
     } finally {
       setLoading(false);
     }
@@ -1030,11 +1170,7 @@ export default function Home() {
       if (result?.id === id) setResult(null);
       if (selectedCarouselId === `history-${id}`) setSelectedCarouselId(null);
     } catch (err) {
-      if (isAuthError(err)) {
-        handleAuthExpired(err instanceof Error ? err.message : undefined);
-      } else {
-        setError(err instanceof Error ? err.message : "Não foi possível excluir.");
-      }
+      setError(err instanceof Error ? err.message : "Não foi possível excluir.");
     } finally {
       setDeletingId(null);
     }
