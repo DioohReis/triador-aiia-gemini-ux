@@ -144,10 +144,16 @@ function ParticleTextCanvas() {
     if (!canvas) return;
 
     const canvasEl = canvas;
-    const context = canvasEl.getContext("2d", { willReadFrequently: true });
-    if (!context) return;
+    const maybeGl =
+      canvasEl.getContext("webgl", { alpha: true, antialias: true, premultipliedAlpha: false }) ??
+      canvasEl.getContext("experimental-webgl", { alpha: true, antialias: true, premultipliedAlpha: false });
+    if (!(maybeGl instanceof WebGLRenderingContext)) return;
+    const gl: WebGLRenderingContext = maybeGl;
 
-    const ctx = context;
+    const maskCanvas = document.createElement("canvas");
+    const maybeMaskCtx = maskCanvas.getContext("2d", { willReadFrequently: true });
+    if (!maybeMaskCtx) return;
+    const maskCtx: CanvasRenderingContext2D = maybeMaskCtx;
 
     type Particle = {
       x: number;
@@ -160,6 +166,15 @@ function ParticleTextCanvas() {
       opacity: number;
       drift: number;
       angle: number;
+    };
+
+    type GLProgram = {
+      program: WebGLProgram;
+      position: number;
+      size: number;
+      opacity: number;
+      resolution: WebGLUniformLocation | null;
+      dpr: WebGLUniformLocation | null;
     };
 
     type CanvasPreset = {
@@ -182,6 +197,15 @@ function ParticleTextCanvas() {
     let frameId = 0;
     let stageWidth = 0;
     let stageHeight = 0;
+    let dpr = 1;
+    let positions = new Float32Array();
+    let sizes = new Float32Array();
+    let opacities = new Float32Array();
+
+    const positionBuffer = gl.createBuffer();
+    const sizeBuffer = gl.createBuffer();
+    const opacityBuffer = gl.createBuffer();
+    if (!positionBuffer || !sizeBuffer || !opacityBuffer) return;
 
     const mouse = {
       x: -9999,
@@ -194,6 +218,98 @@ function ParticleTextCanvas() {
     function clamp(value: number, min: number, max: number) {
       return Math.min(Math.max(value, min), max);
     }
+
+    function createShader(type: number, source: string) {
+      const shader = gl.createShader(type);
+      if (!shader) return null;
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+        gl.deleteShader(shader);
+        return null;
+      }
+
+      return shader;
+    }
+
+    function createProgram(): GLProgram | null {
+      const vertexShader = createShader(
+        gl.VERTEX_SHADER,
+        `
+          attribute vec2 a_position;
+          attribute float a_size;
+          attribute float a_opacity;
+
+          uniform vec2 u_resolution;
+          uniform float u_dpr;
+
+          varying float v_opacity;
+
+          void main() {
+            vec2 zeroToOne = a_position / u_resolution;
+            vec2 clipSpace = zeroToOne * 2.0 - 1.0;
+
+            gl_Position = vec4(clipSpace * vec2(1.0, -1.0), 0.0, 1.0);
+            gl_PointSize = max(1.0, a_size * u_dpr * 2.15);
+            v_opacity = a_opacity;
+          }
+        `
+      );
+      const fragmentShader = createShader(
+        gl.FRAGMENT_SHADER,
+        `
+          precision mediump float;
+
+          varying float v_opacity;
+
+          void main() {
+            vec2 point = gl_PointCoord - vec2(0.5);
+            float distanceFromCenter = length(point);
+            float alpha = smoothstep(0.5, 0.12, distanceFromCenter) * v_opacity;
+
+            if (alpha <= 0.01) {
+              discard;
+            }
+
+            gl_FragColor = vec4(1.0, 1.0, 1.0, alpha);
+          }
+        `
+      );
+
+      if (!vertexShader || !fragmentShader) return null;
+
+      const program = gl.createProgram();
+      if (!program) return null;
+
+      gl.attachShader(program, vertexShader);
+      gl.attachShader(program, fragmentShader);
+      gl.linkProgram(program);
+      gl.deleteShader(vertexShader);
+      gl.deleteShader(fragmentShader);
+
+      if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+        gl.deleteProgram(program);
+        return null;
+      }
+
+      return {
+        program,
+        position: gl.getAttribLocation(program, "a_position"),
+        size: gl.getAttribLocation(program, "a_size"),
+        opacity: gl.getAttribLocation(program, "a_opacity"),
+        resolution: gl.getUniformLocation(program, "u_resolution"),
+        dpr: gl.getUniformLocation(program, "u_dpr"),
+      };
+    }
+
+    const maybeShader = createProgram();
+    if (!maybeShader) return;
+    const shader: GLProgram = maybeShader;
+
+    gl.useProgram(shader.program);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE);
 
     function getCanvasPreset(width: number, height: number): CanvasPreset {
       const shortViewport = height < 680;
@@ -317,8 +433,8 @@ function ParticleTextCanvas() {
       const maxHeight = stageHeight * preset.maxTextHeightRatio;
 
       while (fontSize > preset.minFont) {
-        ctx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
-        const widestLine = Math.max(...lines.map((line) => ctx.measureText(line).width));
+        maskCtx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
+        const widestLine = Math.max(...lines.map((line) => maskCtx.measureText(line).width));
         const totalHeight = fontSize + fontSize * preset.lineHeightRatio * (lines.length - 1);
 
         if (widestLine <= maxWidth && totalHeight <= maxHeight) break;
@@ -335,14 +451,17 @@ function ParticleTextCanvas() {
 
       stageWidth = Math.max(280, width);
       stageHeight = Math.max(420, height);
+      dpr = clamp(window.devicePixelRatio || 1, 1, 2);
 
-      // Desenha em coordenadas CSS reais. Isso evita crop lateral em DPR alto
-      // e mantém o texto centralizado em DevTools, celular real e desktop.
-      canvasEl.width = stageWidth;
-      canvasEl.height = stageHeight;
+      canvasEl.width = Math.round(stageWidth * dpr);
+      canvasEl.height = Math.round(stageHeight * dpr);
       canvasEl.style.width = "100%";
       canvasEl.style.height = "100%";
-      ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+      gl.viewport(0, 0, canvasEl.width, canvasEl.height);
+      gl.useProgram(shader.program);
+      gl.uniform2f(shader.resolution, stageWidth, stageHeight);
+      gl.uniform1f(shader.dpr, dpr);
 
       buildParticles();
     }
@@ -360,18 +479,21 @@ function ParticleTextCanvas() {
 
       mouse.radius = preset.mouseRadius;
 
-      ctx.clearRect(0, 0, w, h);
-      ctx.fillStyle = "white";
-      ctx.textAlign = "center";
-      ctx.textBaseline = "middle";
-      ctx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
+      maskCanvas.width = w;
+      maskCanvas.height = h;
+      maskCtx.setTransform(1, 0, 0, 1, 0, 0);
+      maskCtx.clearRect(0, 0, w, h);
+      maskCtx.fillStyle = "white";
+      maskCtx.textAlign = "center";
+      maskCtx.textBaseline = "middle";
+      maskCtx.font = `900 ${fontSize}px Inter, Arial, sans-serif`;
 
       lines.forEach((line, index) => {
-        ctx.fillText(line, w / 2, startY + index * lineHeight);
+        maskCtx.fillText(line, w / 2, startY + index * lineHeight);
       });
 
-      const imageData = ctx.getImageData(0, 0, w, h);
-      ctx.clearRect(0, 0, w, h);
+      const imageData = maskCtx.getImageData(0, 0, w, h);
+      maskCtx.clearRect(0, 0, w, h);
 
       const gap = preset.gap;
       for (let y = 0; y < h; y += gap) {
@@ -395,14 +517,42 @@ function ParticleTextCanvas() {
           }
         }
       }
+
+      positions = new Float32Array(particles.length * 2);
+      sizes = new Float32Array(particles.length);
+      opacities = new Float32Array(particles.length);
+
+      particles.forEach((p, index) => {
+        const positionIndex = index * 2;
+        positions[positionIndex] = p.x;
+        positions[positionIndex + 1] = p.y;
+        sizes[index] = p.size;
+        opacities[index] = p.opacity;
+      });
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, sizeBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, sizes, gl.STATIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, opacityBuffer);
+      gl.bufferData(gl.ARRAY_BUFFER, opacities, gl.STATIC_DRAW);
+    }
+
+    function bindAttribute(buffer: WebGLBuffer, attribute: number, size: number, usage: number, data?: Float32Array) {
+      if (attribute < 0) return;
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      if (data) {
+        gl.bufferData(gl.ARRAY_BUFFER, data, usage);
+      }
+      gl.enableVertexAttribArray(attribute);
+      gl.vertexAttribPointer(attribute, size, gl.FLOAT, false, 0, 0);
     }
 
     function animate() {
-      const w = stageWidth;
-      const h = stageHeight;
-      ctx.clearRect(0, 0, w, h);
+      gl.viewport(0, 0, canvasEl.width, canvasEl.height);
+      gl.clearColor(0, 0, 0, 0);
+      gl.clear(gl.COLOR_BUFFER_BIT);
 
-      particles.forEach((p) => {
+      particles.forEach((p, index) => {
         p.angle += 0.012;
         p.x += Math.cos(p.angle) * p.drift * 0.11;
         p.y += Math.sin(p.angle) * p.drift * 0.11;
@@ -425,11 +575,18 @@ function ParticleTextCanvas() {
           p.y += (p.baseY - p.y) * p.velocity;
         }
 
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255, 255, 255, ${p.opacity})`;
-        ctx.fill();
+        const positionIndex = index * 2;
+        positions[positionIndex] = p.x;
+        positions[positionIndex + 1] = p.y;
       });
+
+      gl.useProgram(shader.program);
+      bindAttribute(positionBuffer, shader.position, 2, gl.DYNAMIC_DRAW, positions);
+      bindAttribute(sizeBuffer, shader.size, 1, gl.STATIC_DRAW);
+      bindAttribute(opacityBuffer, shader.opacity, 1, gl.STATIC_DRAW);
+      gl.uniform2f(shader.resolution, stageWidth, stageHeight);
+      gl.uniform1f(shader.dpr, dpr);
+      gl.drawArrays(gl.POINTS, 0, particles.length);
 
       frameId = requestAnimationFrame(animate);
     }
@@ -499,6 +656,10 @@ function ParticleTextCanvas() {
       canvasEl.removeEventListener("pointerleave", onPointerLeave);
       window.removeEventListener("resize", resize);
       window.removeEventListener("orientationchange", resize);
+      gl.deleteBuffer(positionBuffer);
+      gl.deleteBuffer(sizeBuffer);
+      gl.deleteBuffer(opacityBuffer);
+      gl.deleteProgram(shader.program);
     };
   }, []);
 

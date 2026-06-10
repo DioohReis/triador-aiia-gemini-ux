@@ -43,6 +43,17 @@ class LLMAnalysisService:
 
         return self._analyze_with_mock(resume_text, job_text)
 
+    def _parse_and_validate(self, raw_text: str) -> AnalysisLLMResult:
+        try:
+            return AnalysisLLMResult.model_validate(self._extract_json(raw_text))
+        except json.JSONDecodeError as exc:
+            raise LLMFormatError("Resposta do LLM nÃ£o Ã© um JSON vÃ¡lido.") from exc
+        except ValidationError as exc:
+            raise LLMFormatError(f"Resposta do LLM fora do contrato: {exc}") from exc
+
+    def _mock_analysis(self, resume_text: str, job_text: str) -> AnalysisLLMResult:
+        return self._analyze_with_mock(resume_text, job_text)
+
     def _analyze_with_gemini(self, resume_text: str, job_text: str) -> AnalysisLLMResult:
         prompt = self._build_prompt(resume_text=resume_text, job_text=job_text)
 
